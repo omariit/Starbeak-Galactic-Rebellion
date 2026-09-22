@@ -1,0 +1,12 @@
+
+=== Mon Sep 21 15:40:08 2026
+
+Packages were changed.
+Update Mode: updateDependencies
+
+The following packages were added:
+  com.unity.ide.vscode@1.2.5
+  com.unity.modules.vehicles@1.0.0
+  com.unity.xr.legacyinputhelpers@2.1.10
+The following packages were updated:
+  com.unity.services.core from version 1.12.2 to 1.12.5

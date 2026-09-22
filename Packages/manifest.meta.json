@@ -1,0 +1,12 @@
+{
+    "templateInfo": {
+        "displayName": "Starbeak",
+        "id": "com.starbeak.template.starbeak",
+        "version": "1.0.0"
+    },
+    "companyName": "ChickenInvaders",
+    "productName": "Chicken Invaders Starbeak",
+    "cloudProjectId": "",
+    "branchName": "main",
+    "moduleId": "com.unity.modules.ui"
+}
