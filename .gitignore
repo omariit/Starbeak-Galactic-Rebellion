@@ -1,0 +1,42 @@
+# Unity generated folders
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]serSettings/
+/[Bb]uild/
+/[Bb]uilds/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+/Assets/Plugins/Editor/JetBrains*
+*.unitypackage
+*.app
+
+# IDE files
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+.idea/
+.vs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Keystore & build artifacts (keep signing files outside repo)
+*.keystore
+*.jks
+
+# Crash reports
+sysinfo.txt
+crashlytics-build.properties
