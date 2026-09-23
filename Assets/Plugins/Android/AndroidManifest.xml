@@ -1,39 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Library-side manifest (merged INTO the launcher module by AGP).
+     Deliberately minimal: no uses-sdk / no supports-screens / no tools:replace —
+     those caused the :launcher:processReleaseMainManifest merge failures.
+     Android version handling lives in PlayerSettings (BuildApk step). -->
 <manifest
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.starbeak.galacticrebellion"
-    android:versionCode="1"
-    android:versionName="1.0.0">
-
-    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="32" />
+    xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.INTERNET"/>
-
-    <supports-screens
-        android:smallScreens="false"
-        android:normalScreens="true"
-        android:largeScreens="true"
-        android:xlargeScreens="true"
-        tools:replace="android:smallScreens" />
 
     <uses-feature android:glEsVersion="0x00020000" android:required="true" />
 
     <application
         android:allowBackup="true"
-        android:fullBackupContent="true"
         android:icon="@drawable/app_icon"
         android:label="Starbeak: Galactic Rebellion"
         android:isGame="true"
         android:hardwareAccelerated="true"
         android:largeHeap="true"
-        android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
-        tools:replace="android:label">
+        android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
 
         <activity
             android:name="com.unity3d.player.UnityPlayerActivity"
-            android:label="Starbeak: Galactic Rebellion"
             android:screenOrientation="portrait"
             android:launchMode="singleTask"
             android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|fontScale|layoutDirection|density"
@@ -41,11 +29,8 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
-                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
-            <meta-data android:name="unityplayer.UnityActivity" android:value="true" />
+            <meta-data android:name="unityplayer.SkipPermissionsDialog" android:value="true" />
         </activity>
-
-        <meta-data android:name="unityplayer.SkipPermissionsDialog" android:value="true" />
     </application>
 </manifest>

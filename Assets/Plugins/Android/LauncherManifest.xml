@@ -1,28 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Unity 2022.3: replaces the auto-generated launcher manifest template so
-     the release merge against :unityLibrary cannot collide (the prior APK build
-     died at :launcher:processReleaseMainManifest on smallScreens + label). -->
+<!-- Unity 2022.3: replaces the auto-generated launcher manifest template. The previous APK
+     build died at :launcher:processReleaseMainManifest on android:label + smallScreens merges
+     against the unityLibrary side; keeping this file attribute-minimal avoids new collisions. -->
 <manifest
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.starbeak.galacticrebellion"
+    android:versionCode="1"
+    android:versionName="1.0.0"
     android:installLocation="preferExternal">
 
     <application
         android:label="Starbeak: Galactic Rebellion"
         android:icon="@mipmap/app_icon"
-        tools:replace="android:label">
-        <activity
-            android:name="com.unity3d.player.UnityPlayerActivity"
-            android:label="Starbeak: Galactic Rebellion"
-            tools:replace="android:label" />
-    </application>
+        android:roundIcon="@mipmap/app_icon" />
 
     <supports-screens
         android:smallScreens="true"
         android:normalScreens="true"
         android:largeScreens="true"
         android:xlargeScreens="true"
-        android:anyDensity="true"
-        tools:replace="android:smallScreens" />
+        android:anyDensity="true" />
 </manifest>
