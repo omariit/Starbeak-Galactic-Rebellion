@@ -58,11 +58,6 @@ namespace StarbeakGalacticRebellion
             }
         }
 
-        public void ShowTransientMarket(int nodeId)
-        {
-            RequestTransientMarket(nodeId);
-        }
-
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -112,6 +107,18 @@ namespace StarbeakGalacticRebellion
         public void Show()
         {
             if (rootPanel != null) rootPanel.SetActive(true);
+
+            if (pendingTransientNodeId != -1)
+            {
+                transientMarketNodeId = pendingTransientNodeId;
+                pendingTransientNodeId = -1;
+                if (marketPanel != null) marketPanel.SetActive(true);
+            }
+            else if (transientMarketNodeId == -1 && marketPanel != null)
+            {
+                marketPanel.SetActive(false);
+            }
+
             RefreshAll();
         }
 

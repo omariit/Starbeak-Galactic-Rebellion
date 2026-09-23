@@ -69,11 +69,6 @@ namespace StarbeakGalacticRebellion
             ChangeState(GameState.MainMenu);
         }
 
-        private void OnDestroy()
-        {
-            SceneManager.sceneLoaded -= HandleSceneLoaded;
-        }
-
         private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             // Per-scene UI canvases only exist after their scene activates; run the
@@ -297,6 +292,8 @@ namespace StarbeakGalacticRebellion
         {
             if (Instance == this) Instance = null;
             StateChanged = null;
+            NodeResolved = null;
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
         }
     }
 

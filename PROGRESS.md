@@ -3,6 +3,10 @@
 > "read PROGRESS.md in C:\Users\DELL\Downloads\Starbeak Galactic Rebellion and continue".
 > Last update: 2026-09-23 (session graph: graphics-overhaul + APK)
 
+## STATE @ 10:40 — agent sessions DIED on restart
+Prior agents produced ONLY: Assets/Resources/Shaders/*.shader (6), Assets/Resources/VFX/{glow,ring}.png copies.
+Everything else (Visuals/*.cs, Flow, builder edits, combat, art swap) NOT done. LauncherManifest fix committed.
+
 ## GOAL (current task)
 1. Professional near-3D graphics upgrade (real 3D background elements + pre-baked 3D-shaded art + bloom lighting, no pipeline change).
 2. Confirm audio works (wiring is done; verify in build).
@@ -67,11 +71,14 @@ Keystore meta: if placed in Assets it imports as DefaultAsset — keep outside A
 - Zero serialized-field renames of existing names used by Assets/Editor/StarbeakProjectBuilder.cs (it re-runs BuildContent and overwrites scenes/prefabs — any scene object you hand-create in scenes will be CLOBBERED: everything must be created either by builder code or self-bootstrapping scripts).
 
 ## STATUS BOARD
-[x] baseline committed (a25d275-ish "baseline: pre-graphics-overhaul")
-[x] activeInputHandler -1 → 2 patched
-[x] keystore created C:\Users\DELL\UnityAndroid\starbeak-release.keystore
-[ ] A1 visual scripts | [ ] A2 art | [ ] A3 integration/fun | [ ] B? (B folded into A3? see prompts)
-[ ] integrate: content build (fix compile errors), iterate APK, install, commit+update this file.
+[x] .gitignore + untrack Library/Temp/Logs/Builds
+[x] LauncherManifest.xml merge fix committed (label + smallScreens)
+[x] activeInputHandler=2, sprite metas PPU1/Simple committed
+[x] keystore C:\Users\DELL\UnityAndroid\starbeak-release.keystore alias=starbeak pass=Starbeak!2026
+[x] Art sprites regenerated (old session gen_sprites.py, 21 Sep — verify quality at end)
+[x] Assets/Resources/Shaders/*.shader (6) + VFX copies exist
+[~] Agent sessions DIED repeatedly → implementing directly (no more delegation)
+TODO direct: GameManager LoadScene+VictoryBanner | BatchmodeBuild keystore | builder camera farClip+audioListener+explicit sprites | VFXManager AddHitFlash/AttachEngineTrail/SpawnBossTelegraph | Visuals BloomStack+VisualWorld | EnemyAIManager EnemyKilled/BossActive+ConfigureAsBoss+autofire | builder Hub scene + Settings sliders | content build → APK loop → adb install
 
 ## COMMANDS
 $U='C:\Program Files\Unity 2022.3.30f1\Editor\Unity.exe'; $P='C:\Users\DELL\Downloads\Starbeak Galactic Rebellion'

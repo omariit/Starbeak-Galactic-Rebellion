@@ -565,7 +565,7 @@ public static class StarbeakProjectBuilder
         AddButton("DepartButton", root, 0f, -780f, 640f, 130f, "DEPLOY -> GALAXY MAP");
 
         // Crafting panel with three slot columns
-        RectTransform craft = AddPanel("CraftingPanel", root, false);
+        RectTransform craft = AddPanel("CraftingPanel", root, true);
         craft.anchoredPosition = new Vector2(0f, -60f);
         craft.sizeDelta = new Vector2(1000f, 560f);
         craft.gameObject.GetComponent<Image>().color = new Color(0.06f, 0.08f, 0.14f, 0.9f);
@@ -575,7 +575,7 @@ public static class StarbeakProjectBuilder
         RectTransform coreSlot = AddScrollList("CoreSlots", craft, 320f, 140f, "CORE");
 
         // Blueprints panel
-        RectTransform blueprints = AddPanel("BlueprintsPanel", root, false);
+        RectTransform blueprints = AddPanel("BlueprintsPanel", root, true);
         blueprints.anchoredPosition = new Vector2(0f, -60f);
         blueprints.sizeDelta = new Vector2(1000f, 560f);
         blueprints.gameObject.GetComponent<Image>().color = new Color(0.06f, 0.08f, 0.14f, 0.9f);
@@ -583,7 +583,7 @@ public static class StarbeakProjectBuilder
         Text loadout = AddText("LoadoutText", blueprints, 0f, -20f, 880f, 360f, "", 30, TextAnchor.UpperCenter);
 
         // Market panel (also used as the transient Black Market overlay from the map)
-        RectTransform market = AddPanel("MarketPanel", root, false);
+        RectTransform market = AddPanel("MarketPanel", root, true);
         market.anchoredPosition = new Vector2(0f, -60f);
         market.sizeDelta = new Vector2(1000f, 520f);
         market.gameObject.GetComponent<Image>().color = new Color(0.1f, 0.07f, 0.14f, 0.95f);

@@ -197,6 +197,13 @@ namespace StarbeakGalacticRebellion
             AudioManager.Instance?.PlaySfx(paused ? "sfx_ui_back" : "sfx_ui_click");
         }
 
+        private void OnRetreat()
+        {
+            Time.timeScale = 1f;
+            AudioManager.Instance?.PlaySfx("sfx_ui_back");
+            CombatDirector.Instance?.AbandonSector();
+        }
+
         private void OnDestroy()
         {
             if (Instance == this)

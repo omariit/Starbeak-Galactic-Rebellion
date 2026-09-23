@@ -165,8 +165,8 @@ namespace StarbeakGalacticRebellion
             switch (node.type)
             {
                 case NodeType.BlackMarket:
-                    // Markets resolve at the hub-style overlay, then return here.
-                    HubBaseController.Instance?.ShowTransientMarket(nodeId);
+                    // Markets resolve in the Hub scene's market panel, then DEPLOY returns here.
+                    HubBaseController.RequestTransientMarket(nodeId);
                     break;
 
                 case NodeType.NebulaAnomaly:
