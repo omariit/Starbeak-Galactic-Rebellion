@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace StarbeakGalacticRebellion
 {
@@ -27,6 +28,21 @@ namespace StarbeakGalacticRebellion
 
         private static readonly int[] EmptyIntArray = new int[0];
 
+        /// <summary>Raised when a node resolves: true = sector cleared.</summary>
+        public static event Action<bool> NodeResolved;
+
+        private static string SceneNameFor(GameState state)
+        {
+            switch (state)
+            {
+                case GameState.MainMenu:  return "MainMenu";
+                case GameState.SectorMap: return "SectorMap";
+                case GameState.Gameplay:  return "Gameplay";
+                case GameState.HubBase:   return "Hub";
+                default: return null;
+            }
+        }
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -42,10 +58,27 @@ namespace StarbeakGalacticRebellion
             CurrentRunSeed = Environment.TickCount;
         }
 
+        /// <summary>True when the most recent completed sector was the galaxy boss.</summary>
+        public static bool LastRunVictory { get; private set; }
+
         private void Start()
         {
+            SceneManager.sceneLoaded += HandleSceneLoaded;
+
             // Boot into the main menu on first launch.
             ChangeState(GameState.MainMenu);
+        }
+
+        private void OnDestroy()
+        {
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
+        }
+
+        private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            // Per-scene UI canvases only exist after their scene activates; run the
+            // state's init once more so this scene's controllers pick up the session.
+            RunStateInit(CurrentState);
         }
 
         private void OnApplicationPause(bool paused)
@@ -81,18 +114,12 @@ namespace StarbeakGalacticRebellion
 
         public void ChangeState(GameState newState)
         {
-            if (CurrentState == newState) return;
+            bool stateSame = CurrentState == newState;
+            bool sceneOk = SceneMatchesState(newState);
+            if (stateSame && sceneOk) return;
 
             CurrentState = newState;
             StateChanged?.Invoke(newState);
-
-            switch (newState)
-            {
-                case GameState.MainMenu:  InitializeMainMenu();  break;
-                case GameState.SectorMap: GenerateOrLoadMap();   break;
-                case GameState.Gameplay:  StartCombatLoop();     break;
-                case GameState.HubBase:   OpenHubInterface();    break;
-            }
 
             // Theme music follows the state machine.
             AudioManager audio = AudioManager.Instance;
@@ -108,6 +135,37 @@ namespace StarbeakGalacticRebellion
 
             // Fresh camera shake state on every transition.
             VFXManager.Instance?.ClearTrauma();
+
+            string scene = SceneNameFor(newState);
+            if (!string.IsNullOrEmpty(scene) &&
+                !string.Equals(SceneManager.GetActiveScene().name, scene, System.StringComparison.Ordinal))
+            {
+                // Transition data lives in DontDestroyOnLoad singletons; the per-scene
+                // UI controllers wake up on the load and get initialized in HandleSceneLoaded.
+                SceneManager.LoadScene(scene, LoadSceneMode.Single);
+            }
+            else
+            {
+                RunStateInit(newState);
+            }
+        }
+
+        private static bool SceneMatchesState(GameState state)
+        {
+            string wanted = SceneNameFor(state);
+            return string.IsNullOrEmpty(wanted) ||
+                   string.Equals(SceneManager.GetActiveScene().name, wanted, System.StringComparison.Ordinal);
+        }
+
+        private void RunStateInit(GameState state)
+        {
+            switch (state)
+            {
+                case GameState.MainMenu:  InitializeMainMenu();  break;
+                case GameState.SectorMap: GenerateOrLoadMap();   break;
+                case GameState.Gameplay:  StartCombatLoop();     break;
+                case GameState.HubBase:   OpenHubInterface();    break;
+            }
         }
 
         /// <summary>Rolls a fresh seed and begins a brand new run.</summary>
@@ -204,18 +262,28 @@ namespace StarbeakGalacticRebellion
         {
             if (!victory) return;
 
+            LastRunVictory = true;
             SectorMapGenerator.Instance?.MarkNodeCompleted(nodeId);
+            NodeResolved?.Invoke(true);
 
             if (SectorMapGenerator.Instance != null &&
                 SectorMapGenerator.Instance.IsBossDefeated)
             {
-                AddResource(ResourceType.GoldenFeathers, 1);
+                AddResource(ResourceType.GoldenFeathers, 3);
                 ChangeState(GameState.HubBase);
             }
             else
             {
                 ChangeState(GameState.SectorMap);
             }
+        }
+
+        /// <summary>Called by PlayerShip when the hull is destroyed.</summary>
+        public void RegisterDefeat()
+        {
+            LastRunVictory = false;
+            NodeResolved?.Invoke(false);
+            ChangeState(GameState.SectorMap);
         }
 
         public int[] GetCompletedNodeIds()

@@ -475,6 +475,171 @@ namespace StarbeakGalacticRebellion
 
         [SerializeField] public Sprite ringSprite;
 
+        // ------------------------------------------------------------------ hit flash
+        private struct Flasher
+        {
+            public SpriteRenderer renderer;
+            public Color baseColor;
+            public Color tint;
+            public float timer;
+            public float duration;
+        }
+
+        private readonly List<Flasher> flashers = new List<Flasher>(96);
+
+        /// <summary>White (or tinted) pop on a sprite when it takes a hit; re-armable.</summary>
+        public void AddHitFlash(GameObject target, Color tint, float duration = 0.12f)
+        {
+            if (target == null) return;
+
+            SpriteRenderer renderer = target.GetComponent<SpriteRenderer>();
+            if (renderer == null) return;
+
+            for (int i = 0; i < flashers.Count; i++)
+            {
+                if (flashers[i].renderer == renderer)
+                {
+                    Flasher f = flashers[i];
+                    f.timer = duration;
+                    f.duration = duration;
+                    flashers[i] = f;
+                    return;
+                }
+            }
+
+            flashers.Add(new Flasher
+            {
+                renderer = renderer,
+                baseColor = renderer.color,
+                tint = tint,
+                timer = duration,
+                duration = duration
+            });
+        }
+
+        private void Update()
+        {
+            if (flashers.Count == 0) return;
+
+            float dt = Time.deltaTime;
+            for (int i = flashers.Count - 1; i >= 0; i--)
+            {
+                Flasher f = flashers[i];
+                if (f.renderer == null)
+                {
+                    flashers.RemoveAt(i);
+                    continue;
+                }
+
+                f.timer -= dt;
+                if (f.timer <= 0f)
+                {
+                    f.renderer.color = f.baseColor;
+                    flashers.RemoveAt(i);
+                    continue;
+                }
+
+                float t = Mathf.Clamp01(f.timer / f.duration);
+                f.renderer.color = Color.Lerp(f.baseColor, f.tint, t);
+                // Pool resets re-arm flashes automatically (ResetState clears color).
+            }
+        }
+
+        // ------------------------------------------------------------------ engine trails
+        private readonly HashSet<int> trailedShips = new HashSet<int>();
+        private Material trailMaterial;
+
+        /// <summary>Additive exhaust trail behind a ship; safe to call repeatedly.</summary>
+        public void AttachEngineTrail(GameObject ship)
+        {
+            if (ship == null) return;
+            int id = ship.GetInstanceID();
+            if (!trailedShips.Add(id)) return;
+
+            if (trailMaterial == null)
+            {
+                Shader trailShader = Shader.Find("Hidden/StarbeakTrail");
+                if (trailShader == null) trailShader = Shader.Find("Sprites/Default");
+                if (trailShader == null) return;
+
+                trailMaterial = new Material(trailShader);
+                trailMaterial.hideFlags = HideFlags.HideAndDontSave;
+            }
+
+            Transform emitter = ship.transform.Find("EngineTrail");
+            if (emitter == null)
+            {
+                GameObject trailGo = new GameObject("EngineTrail");
+                trailGo.transform.SetParent(ship.transform, false);
+                trailGo.transform.localPosition = new Vector3(0f, -120f, -1f);
+                emitter = trailGo.transform;
+            }
+
+            TrailRenderer trail = emitter.GetComponent<TrailRenderer>();
+            if (trail == null) trail = emitter.gameObject.AddComponent<TrailRenderer>();
+
+            trail.sharedMaterial = trailMaterial;
+            trail.time = 0.28f;
+            trail.startWidth = 46f;
+            trail.endWidth = 0f;
+            trail.minVertexDistance = 8f;
+            trail.numCapVertices = 2;
+            trail.sortingLayerName = "Effects";
+            trail.sortingOrder = 20;
+            Color hot = new Color(0.55f, 0.9f, 1f, 0.85f);
+            Color cold = new Color(0.2f, 0.5f, 1f, 0f);
+            trail.colorGradient = new Gradient();
+            trail.colorGradient.SetKeys(
+                new GradientColorKey[]
+                {
+                    new GradientColorKey(hot, 0f),
+                    new GradientColorKey(new Color(0.8f, 0.5f, 1f), 0.5f),
+                    new GradientColorKey(cold, 1f)
+                },
+                new GradientAlphaKey[]
+                {
+                    new GradientAlphaKey(0.9f, 0f),
+                    new GradientAlphaKey(0.35f, 0.5f),
+                    new GradientAlphaKey(0f, 1f)
+                });
+        }
+
+        // ------------------------------------------------------------------ boss telegraph
+        /// <summary>Expanding warning pulse before the boss fleet arrives.</summary>
+        public void SpawnBossTelegraph(Vector3 position, float radius)
+        {
+            if (ringPool.Count == 0) return;
+
+            SpriteRenderer renderer = ringPool[ringCursor];
+            ringCursor = (ringCursor + 1) % ringPool.Count;
+
+            Transform tf = renderer.transform;
+            tf.position = position;
+            tf.rotation = Quaternion.identity;
+            tf.localScale = Vector3.one * 0.2f;
+            if (renderer.sprite == null && ringSprite != null) renderer.sprite = ringSprite;
+
+            renderer.gameObject.SetActive(true);
+            renderer.color = new Color(1f, 0.35f, 0.2f, 0.9f);
+            StartCoroutine(AnimateTelegraph(renderer, radius));
+        }
+
+        private IEnumerator AnimateTelegraph(SpriteRenderer renderer, float radius)
+        {
+            const float duration = 0.9f;
+            float elapsed = 0f;
+            while (elapsed < duration && renderer != null)
+            {
+                elapsed += Time.deltaTime;
+                float t = elapsed / duration;
+                float eased = 1f - Mathf.Pow(1f - t, 2f);
+                renderer.transform.localScale = Vector3.one * (0.2f + radius * 0.006f * eased);
+                renderer.color = new Color(1f, 0.35f, 0.2f, 0.9f * (1f - t));
+                yield return null;
+            }
+            if (renderer != null) renderer.gameObject.SetActive(false);
+        }
+
         private void OnDestroy()
         {
             if (Instance == this) Instance = null;

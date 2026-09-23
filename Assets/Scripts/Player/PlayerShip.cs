@@ -117,6 +117,16 @@ namespace StarbeakGalacticRebellion
         /// <summary>Reports whether the player is currently holding a fire input.</summary>
         public bool IsFiring => InputController.Instance != null && InputController.Instance.IsFiring;
 
+        /// <summary>Autofire: the rebel fleet never stops shooting on mobile.</summary>
+        private bool AutoFireEnabled
+        {
+            get
+            {
+                GameSettings settings = SaveSystem.Instance?.Profile?.settings;
+                return settings == null || settings.autofire;
+            }
+        }
+
         private void Update()
         {
             if (!alive) return;
@@ -126,7 +136,7 @@ namespace StarbeakGalacticRebellion
 
             if (invulnerabilityTimer > 0f) invulnerabilityTimer -= Time.deltaTime;
 
-            if (IsFiring) FireEquippedWeapon();
+            if (IsFiring || AutoFireEnabled) FireEquippedWeapon();
         }
 
         private void FireEquippedWeapon()
@@ -202,7 +212,7 @@ namespace StarbeakGalacticRebellion
 
             EnemyAIManager.Instance?.Deactivate();
             ObjectPooler.Instance?.FlushAll();
-            GameManager.Instance?.ChangeState(GameState.SectorMap);
+            GameManager.Instance?.RegisterDefeat();
         }
 
         private void OnCollisionEnter2D(Collision2D collision)

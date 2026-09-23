@@ -27,6 +27,9 @@ namespace StarbeakGalacticRebellion
         [SerializeField] private float shrapnelSpeed = 320f;
         [SerializeField] private float eliteFireInterval = 2.4f;
 
+        [Header("Boss art (wired by the project builder)")]
+        public Sprite bossSprite;
+
         public int NodeId { get; set; } = -1;
         public ChickenVariant Variant => variant;
         public EliteWeapon EliteWeapon => eliteWeapon;
@@ -51,10 +54,14 @@ namespace StarbeakGalacticRebellion
         }
 
         private Rigidbody2D body;
+        private SpriteRenderer spriteRenderer;
+        private Sprite standardSprite;
+        private Vector3 normalScale = Vector3.one * 0.75f;
         private float health;
         private float freezeTimer;
         private float eliteFireTimer;
         private float armorHealthBonus;
+        private float lastContactTime;
         private bool released;
 
         public bool IsFrozen => freezeTimer > 0f;
@@ -70,11 +77,21 @@ namespace StarbeakGalacticRebellion
             body.bodyType = RigidbodyType2D.Dynamic;
             body.freezeRotation = true;
             body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+
+            spriteRenderer = GetComponent<SpriteRenderer>();
+            if (spriteRenderer != null)
+            {
+                standardSprite = spriteRenderer.sprite;
+                spriteRenderer.color = Color.white;
+            }
+            normalScale = transform.localScale;
         }
 
         /// <summary>Called by the pooler every time this chicken is spawned.</summary>
         public void ResetState()
         {
+            ClearBossConfig();
+
             health = maxHealth;
             freezeTimer = 0f;
             eliteFireTimer = Random.Range(0f, eliteFireInterval);
@@ -82,6 +99,8 @@ namespace StarbeakGalacticRebellion
             IsFrontRow = false;
             FlockOffset = Vector2.zero;
             released = false;
+            transform.localScale = normalScale;
+            if (spriteRenderer != null) spriteRenderer.color = Color.white;
             gameObject.SetActive(true);
         }
 
@@ -112,7 +131,12 @@ namespace StarbeakGalacticRebellion
             if (health <= 0f || amount <= 0f) return false;
 
             health -= amount;
-            if (health > 0f) return false;
+            if (health > 0f)
+            {
+                // White pop flash for readability against the busy starfield.
+                VFXManager.Instance?.AddHitFlash(gameObject, isBoss ? new Color(1f, 0.75f, 0.35f) : Color.white);
+                return false;
+            }
 
             Die();
             return true;
@@ -122,6 +146,8 @@ namespace StarbeakGalacticRebellion
         {
             if (released) return;
             released = true;
+
+            EnemyAIManager aiManager = EnemyAIManager.Instance;
 
             // Rooster Flak Shrapnel: on death, instantiate 8 radial feather projectiles at 45 degrees.
             if (eliteWeapon == EliteWeapon.FlakShrapnel || isBoss)
@@ -153,8 +179,54 @@ namespace StarbeakGalacticRebellion
 
             GameManager.Instance?.AddResource(ResourceType.ScrapIron, scrapDrop);
             SaveSystem.Instance?.RecordEnemyKill(isBoss);
+            aiManager?.NotifyChickenKilled(this);
 
+            EnemyAIManager.Instance?.Unregister(this);
             ObjectPooler.Instance?.ReturnChicken(this);
+        }
+
+        /// <summary>
+        /// Transforms this pooled chicken into the sector boss: bigger, 12x health,
+        /// rotating elite weapons, aggressive fire cadence. Called right after spawn.
+        /// (Must be invoked AFTER ResetState / pool spawn, never before.)
+        /// </summary>
+        public void ConfigureAsBoss(int tier)
+        {
+            isBoss = true;
+            variant = ChickenVariant.BossRooster;
+            contactDamage = 26f;
+            scrapDrop = 25;
+            eliteFireInterval = 1.5f;
+
+            float tierScale = 1f + Mathf.Max(0, tier - 1) * 0.25f;
+            SetMaxHealth(30f * GameConstants.BossHealthModifier * tierScale, true);
+
+            EliteWeapon[] weapons =
+            {
+                EliteWeapon.BoiledNapalmEgg,
+                EliteWeapon.MagneticYolkCharge,
+                EliteWeapon.FlakShrapnel
+            };
+            eliteWeapon = weapons[Random.Range(0, weapons.Length)];
+
+            if (bossSprite != null && spriteRenderer != null) spriteRenderer.sprite = bossSprite;
+            transform.localScale = normalScale * 2.2f;
+        }
+
+        /// <summary>Restores standard (non-boss) identity on pooled reuse.</summary>
+        private void ClearBossConfig()
+        {
+            if (!isBoss) return;
+
+            isBoss = false;
+            variant = ChickenVariant.Standard;
+            contactDamage = 10f;
+            scrapDrop = 2;
+            eliteFireInterval = 2.4f;
+            maxHealth = 30f;
+            eliteWeapon = EliteWeapon.None;
+
+            if (spriteRenderer != null && standardSprite != null) spriteRenderer.sprite = standardSprite;
         }
 
         private void SpawnFlakShrapnel()
@@ -257,11 +329,24 @@ namespace StarbeakGalacticRebellion
             if (released) return;
 
             PlayerShip ship = collision.collider.GetComponent<PlayerShip>();
-            if (ship != null && ship.IsVulnerable)
+            if (ship == null || !ship.IsVulnerable) return;
+
+            // The boss is a durable threat: it bleeds contact damage on a cadence
+            // and knocks itself away instead of kamikaze-dying like standard chicken.
+            if (isBoss)
             {
+                float now = Time.time;
+                if (now - lastContactTime < 0.7f) return;
+                lastContactTime = now;
+
                 ship.TakeDamage(contactDamage);
-                Die();
+                Vector2 push = (Vector2)(transform.position - ship.transform.position);
+                if (push.sqrMagnitude > 0.01f) body.AddForce(push.normalized * 600f, ForceMode2D.Impulse);
+                return;
             }
+
+            ship.TakeDamage(contactDamage);
+            Die();
         }
     }
 

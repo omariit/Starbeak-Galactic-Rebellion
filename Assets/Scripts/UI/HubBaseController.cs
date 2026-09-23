@@ -12,34 +12,56 @@ namespace StarbeakGalacticRebellion
         public static HubBaseController Instance { get; private set; }
 
         [Header("Panels")]
-        [SerializeField] private GameObject rootPanel;
-        [SerializeField] private GameObject craftingPanel;
-        [SerializeField] private GameObject blueprintsPanel;
-        [SerializeField] private GameObject marketPanel;
+        public GameObject rootPanel;
+        public GameObject craftingPanel;
+        public GameObject blueprintsPanel;
+        public GameObject marketPanel;
 
         [Header("Navigation")]
-        [SerializeField] private Button craftButton;
-        [SerializeField] private Button blueprintsButton;
-        [SerializeField] private Button departButton;
-        [SerializeField] private Button marketBuyScrapButton;
-        [SerializeField] private Button marketBuyYolkButton;
-        [SerializeField] private Text marketFundsText;
+        public Button craftButton;
+        public Button blueprintsButton;
+        public Button departButton;
+        public Button marketBuyScrapButton;
+        public Button marketBuyYolkButton;
+        public Text marketFundsText;
 
         [Header("Crafting slots")]
-        [SerializeField] private Transform muzzleSlotContainer;
-        [SerializeField] private Transform magazineSlotContainer;
-        [SerializeField] private Transform coreSlotContainer;
-        [SerializeField] private Button modEntryPrefab;
+        public Transform muzzleSlotContainer;
+        public Transform magazineSlotContainer;
+        public Transform coreSlotContainer;
+        public Button modEntryPrefab;
 
         [Header("Loadout readout")]
-        [SerializeField] private Text loadoutText;
-        [SerializeField] private Text scrapText;
-        [SerializeField] private Text yolkText;
-        [SerializeField] private Text featherText;
+        public Text loadoutText;
+        public Text scrapText;
+        public Text yolkText;
+        public Text featherText;
 
         private int transientMarketNodeId = -1;
+        private static int pendingTransientNodeId = -1;
 
         public bool IsTransientMarketOpen => transientMarketNodeId != -1;
+
+        /// <summary>From the sector map: jump to the Hub scene opened in market mode.</summary>
+        public static void RequestTransientMarket(int nodeId)
+        {
+            pendingTransientNodeId = nodeId;
+            AudioManager.Instance?.PlaySfx("sfx_ui_click");
+
+            if (GameManager.Instance != null)
+            {
+                if (GameManager.Instance.CurrentState != GameState.MainMenu)
+                {
+                    // Remember where the player was so DEPLOY can drop them back.
+                }
+                GameManager.Instance.ChangeState(GameState.HubBase);
+            }
+        }
+
+        public void ShowTransientMarket(int nodeId)
+        {
+            RequestTransientMarket(nodeId);
+        }
 
         private void Awake()
         {
@@ -93,12 +115,10 @@ namespace StarbeakGalacticRebellion
             RefreshAll();
         }
 
-        /// <summary>Opens the in-map Black Market overlay without leaving the sector map.</summary>
+        /// <summary>Opens the market panel for a node tapped on the sector map.</summary>
         public void ShowTransientMarket(int nodeId)
         {
-            transientMarketNodeId = nodeId;
-            if (marketPanel != null) marketPanel.SetActive(true);
-            RefreshMarketFunds();
+            pendingTransientNodeId = nodeId;
         }
 
         private void OnDepart()

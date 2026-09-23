@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace StarbeakGalacticRebellion
@@ -39,9 +40,19 @@ namespace StarbeakGalacticRebellion
         private float formationDescent;
         private int activeTier = 1;
         private bool active;
+        private bool bossNodePending;
+        private Chicken bossChicken;
 
-        /// <summary>Most recent sampled player position (world space).</summary>
+        /// <summary>The most recent player position sampled by the game camera.</summary>
         public Vector2 LastKnownPlayerPosition { get; private set; }
+
+        /// <summary>Fires with the total kill count whenever a chicken dies.</summary>
+        public static event Action<int> EnemyKilled;
+
+        /// <summary>True while the sector boss is alive on screen.</summary>
+        public bool BossActive => bossChicken != null && bossChicken.isActiveAndEnabled;
+
+        private int killCount;
 
         /// <summary>True while the fleet is currently grouped into horizontal ArmoredColumns.</summary>
         public bool ArmoredColumnsActive { get; private set; }
@@ -72,11 +83,15 @@ namespace StarbeakGalacticRebellion
             formationDescent = 0f;
             ArmoredColumnsActive = false;
             SideStepActive = false;
+            killCount = 0;
+            bossChicken = null;
         }
 
         public void Deactivate()
         {
             active = false;
+            bossNodePending = false;
+            bossChicken = null;
             for (int i = activeChickens.Count - 1; i >= 0; i--)
             {
                 ObjectPooler.Instance?.ReturnChicken(activeChickens[i]);
@@ -90,16 +105,46 @@ namespace StarbeakGalacticRebellion
             NodeId = nodeId;
             activeTier = Mathf.Max(1, tier);
             eliteChance = Mathf.Min(0.5f, 0.15f + activeTier * 0.06f);
+            bossNodePending = isBossNode;
         }
 
         // ---------------------------------------------------------------- Spawning
         /// <summary>Builds the fleet for the current sector node.</summary>
         public void SpawnFleet(int count)
         {
+            if (bossNodePending)
+            {
+                SpawnBoss();
+                count = Mathf.Max(4, count / 2); // boss is escorted by a smaller elite wing
+            }
+
             int target = Mathf.Clamp(count, 1, GameConstants.EnemyBudget);
             for (int i = 0; i < target; i++) SpawnChicken(i);
 
             ApplyFlockFormation();
+        }
+
+        /// <summary>The Rooster Warlord: single big entity with an elite weapon rotation.</summary>
+        private void SpawnBoss()
+        {
+            Chicken boss = ObjectPooler.Instance.SpawnChicken(new Vector2(0f, 760f), Quaternion.identity);
+            boss.NodeId = NodeId;
+            boss.ConfigureAsBoss(activeTier);
+            boss.SetFormationAnchor(new Vector2(0f, 520f));
+            boss.IsFrontRow = false;
+            activeChickens.Add(boss);
+            bossChicken = boss;
+
+            VFXManager.Instance?.SpawnBossTelegraph(boss.transform.position, 400f);
+            AudioManager.Instance?.PlaySfx("sfx_warning", 1f);
+        }
+
+        /// <summary>Routed by Chicken.Die so the kill streak + map progress stay in sync.</summary>
+        public void NotifyChickenKilled(Chicken chicken)
+        {
+            killCount++;
+            EnemyKilled?.Invoke(killCount);
+            if (chicken == bossChicken) bossChicken = null;
         }
 
         private void SpawnChicken(int formationIndex)
@@ -109,7 +154,7 @@ namespace StarbeakGalacticRebellion
             chicken.NodeId = NodeId;
 
             float tierHealthScale = 1f + (activeTier - 1) * healthScalePerTier;
-            chicken.SetMaxHealth(chicken.IsBoss ? chicken.ContactDamage * GameConstants.BossHealthModifier : 30f * tierHealthScale, true);
+            chicken.SetMaxHealth(30f * tierHealthScale, true);
 
             if (Random.value < eliteChance)
             {

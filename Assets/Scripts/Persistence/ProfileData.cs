@@ -121,6 +121,10 @@ namespace StarbeakGalacticRebellion
         public bool hapticsEnabled = true;
         /// <summary>When true, vibrate on hull damage in addition to events.</summary>
         public bool damageHaptics = true;
+        /// <summary>Continuous fire without holding the trigger (mobile comfort default).</summary>
+        public bool autofire = true;
+        /// <summary>Unity quality level index persisted across sessions.</summary>
+        public int qualityTier = 3;
 
         public void RestoreDefaults()
         {
@@ -131,6 +135,8 @@ namespace StarbeakGalacticRebellion
             touchSensitivity = 1f;
             hapticsEnabled = true;
             damageHaptics = true;
+            autofire = true;
+            qualityTier = 3;
         }
     }
 }

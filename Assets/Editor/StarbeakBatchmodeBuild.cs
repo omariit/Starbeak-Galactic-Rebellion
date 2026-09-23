@@ -33,6 +33,7 @@ public static class StarbeakBatchmodeBuild
             InvokePrivate(t, "BuildMainMenuScene");
             InvokePrivate(t, "BuildSectorMapScene");
             InvokePrivate(t, "BuildGameplayScene");
+            InvokePrivate(t, "BuildHubScene");
             InvokePrivate(t, "RegisterScenesInBuildSettings");
             InvokePrivate(t, "ApplyPlayerSettings");
             AssetDatabase.SaveAssets();

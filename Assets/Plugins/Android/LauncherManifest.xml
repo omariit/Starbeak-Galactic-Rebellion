@@ -1,18 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Unity 2022.3: replaces the auto-generated launcher manifest template. The previous APK
-     build died at :launcher:processReleaseMainManifest on android:label + smallScreens merges
-     against the unityLibrary side; keeping this file attribute-minimal avoids new collisions. -->
+<!-- Custom launcher (app-module) manifest. Unity 2022.3 uses this file VERBATIM as the
+     launcher module manifest when Assets/Plugins/Android/LauncherManifest.xml exists.
+     The activity declaration mirrors Unity's own template exactly so the merge with the
+     unityLibrary activity addition is identical-attribute-compatible (no conflict). -->
 <manifest
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     package="com.starbeak.galacticrebellion"
-    android:versionCode="1"
-    android:versionName="1.0.0"
     android:installLocation="preferExternal">
 
     <application
         android:label="Starbeak: Galactic Rebellion"
-        android:icon="@mipmap/app_icon" />
+        android:icon="@mipmap/app_icon"
+        android:allowBackup="true">
+
+        <activity
+            android:name="com.unity3d.player.UnityPlayerActivity"
+            android:label="@string/app_name"
+            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection"
+            android:hardwareAccelerated="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:resizeableActivity="false"
+            android:exported="true">
+            <meta-data android:name="unityplayer.UnityActivity" android:value="true" />
+        </activity>
+    </application>
 
     <supports-screens
         android:smallScreens="true"

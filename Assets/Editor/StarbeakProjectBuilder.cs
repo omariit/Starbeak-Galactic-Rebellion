@@ -29,7 +29,7 @@ public static class StarbeakProjectBuilder
     private const string HazardLayer = "HazardArea";
     private const string UILayer = "UI";
 
-    private static readonly string[] SceneNames = { "Boot", "MainMenu", "SectorMap", "Gameplay" };
+    private static readonly string[] SceneNames = { "Boot", "MainMenu", "SectorMap", "Gameplay", "Hub" };
     private static readonly Color PanelColor = new Color(0.08f, 0.10f, 0.18f, 0.92f);
     private static readonly Color ButtonColor = new Color(0.16f, 0.22f, 0.38f, 1f);
 
@@ -54,6 +54,7 @@ public static class StarbeakProjectBuilder
             BuildMainMenuScene();
             BuildSectorMapScene();
             BuildGameplayScene();
+            BuildHubScene();
             RegisterScenesInBuildSettings();
             ApplyPlayerSettings();
             AssetDatabase.SaveAssets();
@@ -96,12 +97,33 @@ public static class StarbeakProjectBuilder
     {
         if (SpriteCache.TryGetValue(name, out Sprite cached)) return cached;
 
-        string[] guids = AssetDatabase.FindAssets($"{name} t:sprite");
-        Sprite sprite = guids.Length > 0
-            ? AssetDatabase.LoadAssetAtPath<Sprite>(AssetDatabase.GUIDToAssetPath(guids[0]))
-            : Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), 100f);
+        // Direct path first: FindAssets token-matching can return a sibling asset,
+        // which previously shipped everything with null sprites (the "not found" log).
+        Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>($"{SpriteRoot}/{name}.png");
+        if (sprite == null)
+        {
+            Texture2D tex = AssetDatabase.LoadAssetAtPath<Texture2D>($"{SpriteRoot}/{name}.png");
+            if (tex != null)
+            {
+                sprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height),
+                                       new Vector2(0.5f, 0.5f), 1f);
+                Debug.LogWarning($"Sprite '{name}' imported as Texture2D; wrapped at runtime.");
+            }
+        }
+        if (sprite == null)
+        {
+            string[] guids = AssetDatabase.FindAssets($"{name} t:sprite");
+            if (guids.Length > 0)
+            {
+                sprite = AssetDatabase.LoadAssetAtPath<Sprite>(AssetDatabase.GUIDToAssetPath(guids[0]));
+            }
+        }
+        if (sprite == null)
+        {
+            Debug.LogWarning($"Sprite '{name}' not found - using fallback.");
+            sprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), 100f);
+        }
 
-        if (guids.Length == 0) Debug.LogWarning($"Sprite '{name}' not found - using fallback.");
         SpriteCache[name] = sprite;
         return sprite;
     }
@@ -187,7 +209,8 @@ public static class StarbeakProjectBuilder
         // Local units (sprite is 256x256); slight inset for fair grazing.
         collider.size = new Vector2(190f, 180f);
 
-        go.AddComponent<Chicken>();
+        Chicken chicken = go.AddComponent<Chicken>();
+        chicken.bossSprite = LoadSprite("boss");
         SavePrefab(go, "Chicken");
     }
 
@@ -271,8 +294,12 @@ public static class StarbeakProjectBuilder
         camera.orthographic = true;
         camera.orthographicSize = 960f; // half of the 1920-unit portrait playfield
         camera.transform.position = new Vector3(0f, 0f, -1000f);
+        camera.nearClipPlane = 0.3f;
+        camera.farClipPlane = 4000f; // must reach the background quad at z=+900 (distance 1900)
         camera.backgroundColor = new Color(0.04f, 0.05f, 0.12f, 1f);
         camera.depth = -1f;
+        if (cameraGo.GetComponent<AudioListener>() == null) cameraGo.AddComponent<AudioListener>();
+        cameraGo.AddComponent<BloomStack>();
 
         // ---- Player ship (lives in Boot; DontDestroyOnLoad carries it between scenes)
         GameObject playerGo = new GameObject("PlayerShip");
@@ -386,8 +413,15 @@ public static class StarbeakProjectBuilder
 
         // Settings sub-panel (hidden by default)
         RectTransform settings = AddPanel("SettingsPanel", root, false);
-        AddText("SettingsTitle", settings, 0f, 240f, 800f, 80f, "SETTINGS", 48, TextAnchor.MiddleCenter);
-        AddButton("CloseSettingsButton", settings, 0f, -240f, 500f, 110f, "CLOSE");
+        AddText("SettingsTitle", settings, 0f, 620f, 800f, 80f, "SETTINGS", 48, TextAnchor.MiddleCenter);
+
+        RectTransform master = AddSlider("MasterVolumeSlider", settings, 0f, 380f, 720f, "MASTER");
+        RectTransform sfx = AddSlider("SfxVolumeSlider", settings, 0f, 180f, 720f, "SOUND FX");
+        RectTransform music = AddSlider("MusicVolumeSlider", settings, 0f, -20f, 720f, "MUSIC");
+        RectTransform autofireBtn = AddButton("AutofireButton", settings, -200f, -180f, 380f, 100f, "AUTOFIRE: ON");
+        RectTransform dragBtn = AddButton("DragButton", settings, 200f, -180f, 380f, 100f, "DRAG MODE");
+        RectTransform qualityBtn = AddButton("QualityButton", settings, 0f, -300f, 620f, 100f, "QUALITY: HIGH");
+        RectTransform closeSettings = AddButton("CloseSettingsButton", settings, 0f, -460f, 500f, 110f, "CLOSE");
         settings.gameObject.SetActive(false);
 
         MainMenuController controller = canvas.gameObject.AddComponent<MainMenuController>();
@@ -400,6 +434,13 @@ public static class StarbeakProjectBuilder
         controller.scrapText = FindComponent<Text>(canvas, "RootPanel/ResourceBar/ScrapText");
         controller.yolkText = FindComponent<Text>(canvas, "RootPanel/ResourceBar/YolkText");
         controller.featherText = FindComponent<Text>(canvas, "RootPanel/ResourceBar/FeatherText");
+        controller.masterSlider = root.Find("SettingsPanel/MasterVolumeSlider")?.GetComponentInChildren<Slider>();
+        controller.sfxSlider = root.Find("SettingsPanel/SfxVolumeSlider")?.GetComponentInChildren<Slider>();
+        controller.musicSlider = root.Find("SettingsPanel/MusicVolumeSlider")?.GetComponentInChildren<Slider>();
+        controller.autofireButton = root.Find("SettingsPanel/AutofireButton")?.GetComponent<Button>();
+        controller.dragButton = root.Find("SettingsPanel/DragButton")?.GetComponent<Button>();
+        controller.qualityButton = root.Find("SettingsPanel/QualityButton")?.GetComponent<Button>();
+        controller.closeSettingsButton = closeSettings.GetComponent<Button>();
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, $"{SceneRoot}/MainMenu.unity");
@@ -496,6 +537,121 @@ public static class StarbeakProjectBuilder
         Debug.Log("[StarbeakProjectBuilder] Gameplay scene built.");
     }
 
+    // ---------------------------------------------------------------- Hub base scene
+    private static void BuildHubScene()
+    {
+        Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        AddBackground("SpaceBackground");
+        AddUICamera();
+
+        Canvas canvas = AddCanvas("HubCanvas");
+        AddEventSystem();
+
+        RectTransform root = AddPanel("RootPanel", canvas.transform, true);
+        AddText("HubTitle", root, 0f, 780f, 960f, 90f, "STARBASE  //  REBELLION HQ", 42, TextAnchor.MiddleCenter)
+            .color = new Color(0.6f, 0.9f, 1f);
+
+        // Resource strip
+        RectTransform resBar = AddPanel("ResourceBar", root, false);
+        resBar.anchoredPosition = new Vector2(0f, 690f);
+        resBar.sizeDelta = new Vector2(1000f, 80f);
+        AddText("ScrapText", resBar, -320f, 0f, 300f, 60f, "Scrap 0", 32, TextAnchor.MiddleCenter);
+        AddText("YolkText", resBar, 0f, 0f, 300f, 60f, "Yolk 0", 32, TextAnchor.MiddleCenter);
+        AddText("FeatherText", resBar, 320f, 0f, 300f, 60f, "Feather 0", 32, TextAnchor.MiddleCenter);
+
+        // Nav buttons
+        AddButton("CraftButton", root, -260f, 560f, 480f, 110f, "BUILD WEAPON");
+        AddButton("BlueprintsButton", root, 260f, 560f, 480f, 110f, "BLUEPRINTS");
+        AddButton("DepartButton", root, 0f, -780f, 640f, 130f, "DEPLOY -> GALAXY MAP");
+
+        // Crafting panel with three slot columns
+        RectTransform craft = AddPanel("CraftingPanel", root, false);
+        craft.anchoredPosition = new Vector2(0f, -60f);
+        craft.sizeDelta = new Vector2(1000f, 560f);
+        craft.gameObject.GetComponent<Image>().color = new Color(0.06f, 0.08f, 0.14f, 0.9f);
+        AddText("CraftTitle", craft, 0f, 250f, 900f, 60f, "WEAPON BENCH", 40, TextAnchor.MiddleCenter);
+        RectTransform muzzleSlot = AddScrollList("MuzzleSlots", craft, -320f, 140f, "MUZZLE");
+        RectTransform magazineSlot = AddScrollList("MagazineSlots", craft, 0f, 140f, "MAGAZINE");
+        RectTransform coreSlot = AddScrollList("CoreSlots", craft, 320f, 140f, "CORE");
+
+        // Blueprints panel
+        RectTransform blueprints = AddPanel("BlueprintsPanel", root, false);
+        blueprints.anchoredPosition = new Vector2(0f, -60f);
+        blueprints.sizeDelta = new Vector2(1000f, 560f);
+        blueprints.gameObject.GetComponent<Image>().color = new Color(0.06f, 0.08f, 0.14f, 0.9f);
+        AddText("BlueprintsTitle", blueprints, 0f, 220f, 900f, 60f, "BLUEPRINT ARCHIVE", 40, TextAnchor.MiddleCenter);
+        Text loadout = AddText("LoadoutText", blueprints, 0f, -20f, 880f, 360f, "", 30, TextAnchor.UpperCenter);
+
+        // Market panel (also used as the transient Black Market overlay from the map)
+        RectTransform market = AddPanel("MarketPanel", root, false);
+        market.anchoredPosition = new Vector2(0f, -60f);
+        market.sizeDelta = new Vector2(1000f, 520f);
+        market.gameObject.GetComponent<Image>().color = new Color(0.1f, 0.07f, 0.14f, 0.95f);
+        AddText("MarketTitle", market, 0f, 200f, 900f, 60f, "BLACK MARKET", 40, TextAnchor.MiddleCenter);
+        AddText("MarketFundsText", market, 0f, 140f, 800f, 50f, "Scrap: 0", 30, TextAnchor.MiddleCenter)
+            .color = new Color(0.9f, 0.8f, 0.5f);
+        AddButton("MarketBuyScrapButton", market, -240f, 0f, 440f, 120f, "BUY\n40 Core");
+        AddButton("MarketBuyYolkButton", market, 240f, 0f, 440f, 120f, "BUY\n40 Core");
+
+        // All secondary panels start collapsed
+        craft.gameObject.SetActive(false);
+        blueprints.gameObject.SetActive(false);
+        market.gameObject.SetActive(false);
+
+        HubBaseController hub = canvas.gameObject.AddComponent<HubBaseController>();
+        hub.rootPanel = root.gameObject;
+        hub.craftingPanel = craft.gameObject;
+        hub.blueprintsPanel = blueprints.gameObject;
+        hub.marketPanel = market.gameObject;
+        hub.craftButton = FindComponent<Button>(canvas, "RootPanel/CraftButton");
+        hub.blueprintsButton = FindComponent<Button>(canvas, "RootPanel/BlueprintsButton");
+        hub.departButton = FindComponent<Button>(canvas, "RootPanel/DepartButton");
+        hub.marketBuyScrapButton = FindComponent<Button>(canvas, "RootPanel/MarketPanel/MarketBuyScrapButton");
+        hub.marketBuyYolkButton = FindComponent<Button>(canvas, "RootPanel/MarketPanel/MarketBuyYolkButton");
+        hub.marketFundsText = FindComponent<Text>(canvas, "RootPanel/MarketPanel/MarketFundsText");
+        hub.muzzleSlotContainer = muzzleSlot;
+        hub.magazineSlotContainer = magazineSlot;
+        hub.coreSlotContainer = coreSlot;
+        hub.modEntryPrefab = LoadComponent<Button>("NodeButton");
+        hub.loadoutText = loadout;
+        hub.scrapText = FindComponent<Text>(canvas, "RootPanel/ResourceBar/ScrapText");
+        hub.yolkText = FindComponent<Text>(canvas, "RootPanel/ResourceBar/YolkText");
+        hub.featherText = FindComponent<Text>(canvas, "RootPanel/ResourceBar/FeatherText");
+
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, $"{SceneRoot}/Hub.unity");
+        Debug.Log("[StarbeakProjectBuilder] Hub scene built.");
+    }
+
+    /// <summary>Vertical stacked list of button rows for a weapon slot column.</summary>
+    private static RectTransform AddScrollList(string name, Transform parent, float x, float y, string header)
+    {
+        RectTransform column = AddPanel(name, parent, false);
+        column.anchorMin = new Vector2(0.5f, 0.5f);
+        column.anchorMax = new Vector2(0.5f, 0.5f);
+        column.anchoredPosition = new Vector2(x - 500f, y + 60f);
+        column.pivot = new Vector2(0f, 1f);
+        column.sizeDelta = new Vector2(300f, 360f);
+
+        AddText($"{name}Header", column, 150f, -20f, 300f, 40f, header, 26, TextAnchor.MiddleCenter);
+
+        RectTransform rows = AddPanel("Rows", column, false);
+        rows.pivot = new Vector2(0.5f, 1f);
+        rows.anchoredPosition = new Vector2(150f, -50f);
+        rows.sizeDelta = new Vector2(300f, 300f);
+        rows.anchorMin = new Vector2(0f, 1f);
+        rows.anchorMax = new Vector2(0f, 1f);
+
+        VerticalLayoutGroup layout = rows.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.spacing = 8f;
+        layout.childControlHeight = false;
+        layout.childControlWidth = false;
+        layout.childForceExpandHeight = false;
+        layout.childAlignment = TextAnchor.UpperCenter;
+
+        return rows;
+    }
+
     // ---------------------------------------------------------------- UI scaffolding
     private static Camera AddUICamera()
     {
@@ -505,9 +661,12 @@ public static class StarbeakProjectBuilder
         camera.orthographic = true;
         camera.orthographicSize = 960f;
         camera.transform.position = new Vector3(0f, 0f, -1000f);
+        camera.nearClipPlane = 0.3f;
+        camera.farClipPlane = 4000f; // background quad lives at z=+900
         camera.backgroundColor = new Color(0.04f, 0.05f, 0.12f, 1f);
         camera.depth = 0f;
         camera.clearFlags = CameraClearFlags.SolidColor;
+        if (go.GetComponent<AudioListener>() == null) go.AddComponent<AudioListener>();
         return camera;
     }
 
@@ -623,6 +782,60 @@ public static class StarbeakProjectBuilder
         labelRect.offsetMin = Vector2.zero;
         labelRect.offsetMax = Vector2.zero;
         return rect;
+    }
+
+    /// <summary>Legacy UI slider built from scratch: track + fill + handle + label.</summary>
+    private static RectTransform AddSlider(string name, Transform parent, float x, float y, float w, string label)
+    {
+        RectTransform root = AddPanel(name, parent, false);
+        root.anchoredPosition = new Vector2(x, y);
+        root.sizeDelta = new Vector2(w, 90f);
+
+        AddText($"{name}Label", root, 0f, 48f, w, 40f, label, 28, TextAnchor.MiddleCenter);
+
+        RectTransform track = AddPanel("Background", root, true);
+        track.anchorMin = new Vector2(0f, 0.5f);
+        track.anchorMax = new Vector2(1f, 0.5f);
+        track.offsetMin = new Vector2(0f, -18f);
+        track.offsetMax = new Vector2(0f, 18f);
+        track.gameObject.GetComponent<Image>().color = new Color(0.1f, 0.12f, 0.18f, 0.95f);
+
+        RectTransform fillArea = AddPanel("Fill Area", root, false);
+        fillArea.anchorMin = new Vector2(0f, 0.5f);
+        fillArea.anchorMax = new Vector2(1f, 0.5f);
+        fillArea.offsetMin = new Vector2(12f, -18f);
+        fillArea.offsetMax = new Vector2(-12f, 18f);
+
+        RectTransform fill = AddPanel("Fill", fillArea, true);
+        fill.anchorMin = Vector2.zero;
+        fill.anchorMax = new Vector2(0f, 1f);
+        fill.offsetMin = Vector2.zero;
+        fill.offsetMax = Vector2.zero;
+        fill.gameObject.GetComponent<Image>().color = new Color(0.45f, 0.9f, 1f, 0.95f);
+
+        RectTransform handleArea = AddPanel("Handle Slide Area", root, false);
+        handleArea.anchorMin = new Vector2(0f, 0f);
+        handleArea.anchorMax = new Vector2(1f, 1f);
+        handleArea.offsetMin = new Vector2(24f, 0f);
+        handleArea.offsetMax = new Vector2(-24f, 0f);
+
+        RectTransform handle = AddPanel("Handle", handleArea, true);
+        handle.sizeDelta = new Vector2(48f, 48f);
+        handle.pivot = new Vector2(0.5f, 0.5f);
+        handle.anchorMin = new Vector2(0f, 0.5f);
+        handle.anchorMax = new Vector2(0f, 0.5f);
+        handle.anchoredPosition = Vector2.zero;
+        handle.gameObject.GetComponent<Image>().color = Color.white;
+
+        Slider slider = root.gameObject.AddComponent<Slider>();
+        slider.fillRect = fill;
+        slider.handleRect = handle;
+        slider.targetGraphic = handle.GetComponent<Image>();
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.value = 1f;
+        return root;
     }
 
     private static Image AddFillBar(string name, Transform parent, float yOffset, Color color)
