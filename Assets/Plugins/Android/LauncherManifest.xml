@@ -10,7 +10,8 @@
 
     <application
         android:label="Starbeak: Galactic Rebellion"
-        android:icon="@mipmap/app_icon"
+        android:icon="@mipmap/sb_icon"
+        android:roundIcon="@mipmap/sb_icon"
         android:allowBackup="true">
 
         <activity

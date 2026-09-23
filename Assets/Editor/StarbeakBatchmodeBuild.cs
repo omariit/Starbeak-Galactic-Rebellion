@@ -65,6 +65,8 @@ public static class StarbeakBatchmodeBuild
             // Colon is invalid in Windows folder names and breaks the Burst AOT output folder;
             // the on-device app name still comes from AndroidManifest.xml (with the colon).
             PlayerSettings.productName = "Starbeak Galactic Rebellion";
+            PlayerSettings.bundleVersion = "1.0.1";
+            PlayerSettings.Android.bundleVersionCode = 2;
             PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, BundleId);
             PlayerSettings.applicationIdentifier = BundleId;
 
@@ -72,6 +74,8 @@ public static class StarbeakBatchmodeBuild
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevel32;
 
             // Release signing. Keystore was created with Unity's bundled OpenJDK keytool.
+            // Without useCustomKeystore=1 Unity silently ships the DEBUG key even when the
+            // keystore fields are set — the previous APK was debug-signed for this reason.
             string keystore = @"C:/Users/DELL/UnityAndroid/starbeak-release.keystore";
             if (System.IO.File.Exists(keystore))
             {
@@ -79,6 +83,17 @@ public static class StarbeakBatchmodeBuild
                 PlayerSettings.Android.keystorePass = "Starbeak!2026";
                 PlayerSettings.Android.keyaliasName = "starbeak";
                 PlayerSettings.Android.keyaliasPass = "Starbeak!2026";
+
+                var useCustom = typeof(PlayerSettings.Android).GetProperty("useCustomKeystore");
+                if (useCustom != null)
+                {
+                    useCustom.SetValue(null, true, null);
+                    Log("useCustomKeystore = true");
+                }
+                else
+                {
+                    Log("WARNING: useCustomKeystore property not found on this Unity version.");
+                }
                 Log("Using release keystore " + keystore);
             }
             else
