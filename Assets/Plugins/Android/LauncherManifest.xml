@@ -12,8 +12,7 @@
 
     <application
         android:label="Starbeak: Galactic Rebellion"
-        android:icon="@mipmap/app_icon"
-        android:roundIcon="@mipmap/app_icon" />
+        android:icon="@mipmap/app_icon" />
 
     <supports-screens
         android:smallScreens="true"
