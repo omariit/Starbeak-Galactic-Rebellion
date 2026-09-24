@@ -56,6 +56,12 @@ namespace StarbeakGalacticRebellion
             IsProductionBuild = Debug.isDebugBuild == false;
             ApplyProductionOptimizations();
             CurrentRunSeed = Environment.TickCount;
+
+            // Portrait only, never upside down. Some OEM launchers rotate a
+            // portrait-locked activity 180 degrees unless this is explicit.
+            Screen.autorotateToPortrait = true;
+            Screen.autorotateToPortraitUpsideDown = false;
+            if (Screen.orientation != ScreenOrientation.Portrait) Screen.orientation = ScreenOrientation.Portrait;
         }
 
         /// <summary>True when the most recent completed sector was the galaxy boss.</summary>

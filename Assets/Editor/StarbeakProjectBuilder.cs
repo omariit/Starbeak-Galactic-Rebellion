@@ -299,7 +299,9 @@ public static class StarbeakProjectBuilder
         camera.backgroundColor = new Color(0.04f, 0.05f, 0.12f, 1f);
         camera.depth = -1f;
         if (cameraGo.GetComponent<AudioListener>() == null) cameraGo.AddComponent<AudioListener>();
-        cameraGo.AddComponent<BloomStack>();
+        // NOTE: no BloomStack on the boot camera. This camera only lives for the very
+        // first frame before MainMenu loads, and a post-process chain is the most
+        // GPU-specific code path in the project - a hard no-go on an untested phone GPU.
 
         // ---- Player ship (lives in Boot; DontDestroyOnLoad carries it between scenes)
         GameObject playerGo = new GameObject("PlayerShip");
@@ -886,6 +888,16 @@ public static class StarbeakProjectBuilder
         Texture2D icon = AssetDatabase.LoadAssetAtPath<Texture2D>($"{SpriteRoot}/app_icon.png");
         if (icon != null) TrySetApplicationIcon(icon);
         PlayerSettings.colorSpace = ColorSpace.Linear;
+
+        // Portrait-locked: a portrait-upside-down orientation on some OEM launchers
+        // presents the whole game rotated 180 degrees.
+        PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
+        PlayerSettings.allowedAutorotateToPortrait = true;
+        PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
+        PlayerSettings.allowedAutorotateToLandscapeLeft = false;
+        PlayerSettings.allowedAutorotateToLandscapeRight = false;
+        PlayerSettings.useAnimatedAutorotation = true;
+
         Debug.Log("[StarbeakProjectBuilder] Player settings applied.");
     }
 
