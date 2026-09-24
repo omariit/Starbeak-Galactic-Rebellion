@@ -66,6 +66,12 @@ namespace StarbeakGalacticRebellion
                 activeProfile = ProfileData.CreateDefault();
                 MarkDirty();
             }
+            catch (Exception e)
+            {
+                // A save-system failure must NEVER end the run. Fall back to defaults.
+                CrashLog.Error("SaveSystem.Load", e);
+                activeProfile = ProfileData.CreateDefault();
+            }
             finally
             {
                 loadingInProgress = false;
@@ -74,20 +80,34 @@ namespace StarbeakGalacticRebellion
             ProfileLoaded?.Invoke(activeProfile);
         }
 
-        /// <summary>Immediate encrypted write. Use sparingly; prefer MarkDirty().</summary>
+        /// <summary>Immediate write. Use sparingly; prefer MarkDirty().</summary>
         public bool Flush()
         {
             if (!dirty || activeProfile == null) return false;
 
-            activeProfile.lastSavedUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            activeProfile.totalPlayTimeSeconds += (long)Time.unscaledDeltaTime;
+            try
+            {
+                activeProfile.lastSavedUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                activeProfile.totalPlayTimeSeconds += (long)Time.unscaledDeltaTime;
 
-            string json = JsonUtility.ToJson(activeProfile);
-            byte[] payload = AesEncryptor.Encrypt(json);
+                string json = JsonUtility.ToJson(activeProfile);
+                byte[] payload = AesEncryptor.Encrypt(json);
+                if (payload == null || payload.Length == 0)
+                {
+                    dirty = false;
+                    return false;
+                }
 
-            bool ok = AesEncryptor.WriteFile(FilePath, payload);
-            if (ok) dirty = false;
-            return ok;
+                bool ok = AesEncryptor.WriteFile(FilePath, payload);
+                if (ok) dirty = false;
+                return ok;
+            }
+            catch (Exception e)
+            {
+                CrashLog.Error("SaveSystem.Flush", e);
+                dirty = false;
+                return false;
+            }
         }
 
         public void MarkDirty()

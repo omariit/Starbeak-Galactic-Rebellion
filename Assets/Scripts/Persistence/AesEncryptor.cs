@@ -1,109 +1,130 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography;
 using System.Text;
-using UnityEngine;
 
 namespace StarbeakGalacticRebellion
 {
     /// <summary>
-    /// AES-256-CBC JSON serializer. Writes an encrypted blob to
-    /// Application.persistentDataPath/usr_profile.dat.
+    /// Lightweight save obfuscator (XOR stream + managed FNV-1a checksum).
+    ///
+    /// WHY THIS EXISTS: the previous implementation used System.Security.Cryptography
+    /// (Aes / Rfc2898DeriveBytes / SHA256) inside a *static field initializer*. On Android
+    /// IL2CPP with the .NET Standard profile that API surface is not guaranteed to be
+    /// implemented; a failure there is a TypeInitializationException thrown from inside a
+    /// Unity native callback, which terminates the app during the first scene load
+    /// (symptom: splash + one frame, then process exit).
+    ///
+    /// This implementation uses only managed primitives that always exist, so the save
+    /// system can never take the game down. It is tamper *obfuscation*, not secrecy.
     /// </summary>
     public static class AesEncryptor
     {
-        private const int KeySize = 256;
-        private const int IvSize = 128;
-        private const int SaltSize = 128;
+        // Kept for API compatibility with the old class name.
+        public const int KeySize = 256;
+        public const int IvSize = 128;
+        public const int SaltSize = 128;
 
-        // Per-install key material. In production, replace with a device-specific
-        // value bound to the install (e.g. SystemInfo.deviceUniqueIdentifier).
-        private static readonly string Passphrase = "CIUR-UniversalRebellion-v1";
-        private static readonly byte[] Salt =
-            Encoding.UTF8.GetBytes("0F2C9E6A5D6B4F1C");
+        private const string Passphrase = "CIUR-UniversalRebellion-v1";
+        private static readonly byte[] Salt = Encoding.UTF8.GetBytes("0F2C9E6A5D6B4F1C");
+        private static readonly byte[] Magic = { (byte)'S', (byte)'B', (byte)'K', (byte)'1' };
 
-        private static readonly byte[] Key = DeriveKey(Passphrase, Salt);
+        // ---- FNV-1a (managed, allocation free) -----------------------------------------
+        private static uint Fnv1a(byte[] data, uint seed)
+        {
+            unchecked
+            {
+                uint hash = seed;
+                for (int i = 0; i < data.Length; i++)
+                {
+                    hash ^= data[i];
+                    hash *= 16777619u;
+                }
+                return hash;
+            }
+        }
 
-        /// <summary>Encrypts a UTF-8 string into a length-prefixed byte array.</summary>
+        private static byte[] BuildKeyStream(uint round)
+        {
+            byte[] seed = new byte[Passphrase.Length + Salt.Length + 4];
+            Encoding.UTF8.GetBytes(Passphrase, 0, Passphrase.Length, seed, 0);
+            Buffer.BlockCopy(Salt, 0, seed, Passphrase.Length, Salt.Length);
+            seed[seed.Length - 4] = (byte)(round & 0xFF);
+            seed[seed.Length - 3] = (byte)((round >> 8) & 0xFF);
+            seed[seed.Length - 2] = (byte)((round >> 16) & 0xFF);
+            seed[seed.Length - 1] = (byte)((round >> 24) & 0xFF);
+            return seed;
+        }
+
+        // ---- Transform ---------------------------------------------------------------
+        private static byte[] Transform(byte[] data, uint round)
+        {
+            byte[] key = BuildKeyStream(round);
+            byte[] result = new byte[data.Length];
+            for (int i = 0; i < data.Length; i++)
+            {
+                // Non-linear mixing so identical plaintext blocks do not repeat.
+                uint mixed = Fnv1a(key, (uint)i * 2654435761u + round);
+                result[i] = (byte)(data[i] ^ (byte)(mixed & 0xFF) ^ (byte)((mixed >> 8) & 0xFF));
+            }
+            return result;
+        }
+
+        /// <summary>Encrypts a UTF-8 string into a magic-prefixed obfuscated blob.</summary>
         public static byte[] Encrypt(string plainText)
         {
             if (string.IsNullOrEmpty(plainText)) return Array.Empty<byte>();
 
-            byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
-            byte[] cipherBytes;
+            byte[] plain = Encoding.UTF8.GetBytes(plainText);
+            uint checksum = Fnv1a(plain, 2166136261u);
+            byte[] body = Transform(plain, checksum);
 
-            using (Aes aes = Aes.Create())
-            {
-                aes.KeySize = KeySize;
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.PKCS7;
-                aes.Key = Key;
-                aes.GenerateIV();
-
-                using (ICryptoTransform encryptor = aes.CreateEncryptor())
-                using (MemoryStream memory = new MemoryStream(plainBytes.Length + IvSize / 8))
-                {
-                    memory.Write(aes.IV, 0, aes.IV.Length);
-                    using (CryptoStream crypto = new CryptoStream(memory, encryptor, CryptoStreamMode.Write))
-                    {
-                        crypto.Write(plainBytes, 0, plainBytes.Length);
-                        crypto.FlushFinalBlock();
-                    }
-                    cipherBytes = memory.ToArray();
-                }
-            }
-            return cipherBytes;
+            byte[] result = new byte[Magic.Length + 4 + body.Length];
+            Buffer.BlockCopy(Magic, 0, result, 0, Magic.Length);
+            result[4] = (byte)(checksum & 0xFF);
+            result[5] = (byte)((checksum >> 8) & 0xFF);
+            result[6] = (byte)((checksum >> 16) & 0xFF);
+            result[7] = (byte)((checksum >> 24) & 0xFF);
+            Buffer.BlockCopy(body, 0, result, Magic.Length + 4, body.Length);
+            return result;
         }
 
-        /// <summary>Decrypts a previously encrypted byte array back to a UTF-8 string.</summary>
+        /// <summary>Decrypts a blob produced by <see cref="Encrypt"/>; empty string if invalid.</summary>
         public static string Decrypt(byte[] cipherBytes)
         {
-            if (cipherBytes == null || cipherBytes.Length == 0) return string.Empty;
+            if (cipherBytes == null || cipherBytes.Length <= Magic.Length + 4) return string.Empty;
 
-            int ivLength = IvSize / 8;
-            if (cipherBytes.Length < ivLength) return string.Empty;
+            for (int i = 0; i < Magic.Length; i++)
+            {
+                if (cipherBytes[i] != Magic[i]) return string.Empty;
+            }
 
-            byte[] iv = new byte[ivLength];
-            Buffer.BlockCopy(cipherBytes, 0, iv, 0, ivLength);
+            uint checksum = (uint)(cipherBytes[4]
+                                   | (cipherBytes[5] << 8)
+                                   | (cipherBytes[6] << 16)
+                                   | (cipherBytes[7] << 24));
 
-            int cipherLength = cipherBytes.Length - ivLength;
-            byte[] cipher = new byte[cipherLength];
-            Buffer.BlockCopy(cipherBytes, ivLength, cipher, 0, cipherLength);
+            int bodyLength = cipherBytes.Length - Magic.Length - 4;
+            byte[] body = new byte[bodyLength];
+            Buffer.BlockCopy(cipherBytes, Magic.Length + 4, body, 0, bodyLength);
+            byte[] plain = Transform(body, checksum);
+
+            if (Fnv1a(plain, 2166136261u) != checksum) return string.Empty;
 
             try
             {
-                using (Aes aes = Aes.Create())
-                {
-                    aes.KeySize = KeySize;
-                    aes.Mode = CipherMode.CBC;
-                    aes.Padding = PaddingMode.PKCS7;
-                    aes.Key = Key;
-                    aes.IV = iv;
-
-                    using (ICryptoTransform decryptor = aes.CreateDecryptor())
-                    using (MemoryStream memory = new MemoryStream(cipher))
-                    using (CryptoStream crypto = new CryptoStream(memory, decryptor, CryptoStreamMode.Read))
-                    using (StreamReader reader = new StreamReader(crypto, Encoding.UTF8))
-                    {
-                        return reader.ReadToEnd();
-                    }
-                }
+                return Encoding.UTF8.GetString(plain);
             }
-            catch (CryptographicException)
-            {
-                // Tampered or incompatible blob - never crash the game over a save file.
-                return string.Empty;
-            }
-            catch (DecoderFallbackException)
+            catch (Exception)
             {
                 return string.Empty;
             }
         }
 
-        /// <summary>Writes the encrypted payload atomically (temp file + replace).</summary>
+        /// <summary>Writes the obfuscated payload atomically (temp file + replace).</summary>
         public static bool WriteFile(string path, byte[] payload)
         {
+            if (string.IsNullOrEmpty(path) || payload == null || payload.Length == 0) return false;
+
             try
             {
                 string directory = Path.GetDirectoryName(path);
@@ -114,43 +135,35 @@ namespace StarbeakGalacticRebellion
 
                 string temp = path + ".tmp";
                 File.WriteAllBytes(temp, payload);
-                if (File.Exists(path)) File.Replace(temp, path, null);
-                else File.Move(temp, path);
+                if (File.Exists(path)) File.Delete(path);
+                File.Move(temp, path);
                 return true;
             }
-            catch (IOException) { return false; }
-            catch (UnauthorizedAccessException) { return false; }
+            catch (Exception)
+            {
+                // Never let persistence problems take the game down.
+                return false;
+            }
         }
 
         public static byte[] ReadFile(string path)
         {
             try
             {
-                return File.Exists(path) ? File.ReadAllBytes(path) : null;
+                return !string.IsNullOrEmpty(path) && File.Exists(path) ? File.ReadAllBytes(path) : null;
             }
-            catch (IOException) { return null; }
-            catch (UnauthorizedAccessException) { return null; }
-        }
-
-        private static byte[] DeriveKey(string passphrase, byte[] salt)
-        {
-            using (Rfc2898DeriveBytes kdf = new Rfc2898DeriveBytes(
-                Encoding.UTF8.GetBytes(passphrase), salt, 10000, HashAlgorithmName.SHA256))
+            catch (Exception)
             {
-                return kdf.GetBytes(KeySize / 8);
+                return null;
             }
         }
 
-        /// <summary>Hex digest used for integrity checking of blueprint configs.</summary>
+        /// <summary>Stable hex digest used for integrity checks (managed FNV-1a).</summary>
         public static string ComputeHash(string input)
         {
-            using (SHA256 sha = SHA256.Create())
-            {
-                byte[] digest = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
-                StringBuilder builder = new StringBuilder(digest.Length * 2);
-                for (int i = 0; i < digest.Length; i++) builder.Append(digest[i].ToString("x2"));
-                return builder.ToString();
-            }
+            if (string.IsNullOrEmpty(input)) return "0";
+            uint hash = Fnv1a(Encoding.UTF8.GetBytes(input), 2166136261u);
+            return hash.ToString("x8");
         }
     }
 }

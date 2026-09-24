@@ -86,13 +86,24 @@ namespace StarbeakGalacticRebellion
         {
             // Sprites/Default with additive blending gives bright, glowing particles
             // that never darken the background (essential for explosions).
-            Material mat = new Material(Shader.Find("Sprites/Default"));
-            mat.SetFloat("_Mode", 1f); // Legacy additive mode
-            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
-            mat.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
-            mat.SetInt("_ZWrite", 0);
-            mat.EnableKeyword("_ALPHABLEND_ON");
+            Shader shader = Shader.Find("Sprites/Default");
+            if (shader == null) shader = Shader.Find("Hidden/StarbeakTransparentGlow");
+            if (shader == null)
+            {
+                Debug.LogWarning("[VFXManager] No additive sprite shader found; VFX use default material.");
+                return null;
+            }
+
+            Material mat = new Material(shader);
+            if (shader.name == "Sprites/Default")
+            {
+                mat.SetFloat("_Mode", 1f); // Legacy additive mode
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+                mat.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+                mat.SetInt("_ZWrite", 0);
+                mat.EnableKeyword("_ALPHABLEND_ON");
+            }
             return mat;
         }
 

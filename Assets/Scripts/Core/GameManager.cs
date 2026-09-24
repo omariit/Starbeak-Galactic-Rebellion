@@ -154,12 +154,23 @@ namespace StarbeakGalacticRebellion
 
         private void RunStateInit(GameState state)
         {
-            switch (state)
+            // Every transition is guarded: a failure in one subsystem must never abort
+            // the boot sequence (an exception inside a native scene-load callback is
+            // fatal on IL2CPP releases).
+            try
             {
-                case GameState.MainMenu:  InitializeMainMenu();  break;
-                case GameState.SectorMap: GenerateOrLoadMap();   break;
-                case GameState.Gameplay:  StartCombatLoop();     break;
-                case GameState.HubBase:   OpenHubInterface();    break;
+                switch (state)
+                {
+                    case GameState.MainMenu:  InitializeMainMenu();  break;
+                    case GameState.SectorMap: GenerateOrLoadMap();   break;
+                    case GameState.Gameplay:  StartCombatLoop();     break;
+                    case GameState.HubBase:   OpenHubInterface();    break;
+                }
+            }
+            catch (System.Exception e)
+            {
+                CrashLog.Error($"RunStateInit({state})", e);
+                Debug.LogError($"[GameManager] state init failed for {state}: {e}");
             }
         }
 

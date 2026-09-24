@@ -107,6 +107,8 @@ namespace StarbeakGalacticRebellion
             float dt = Time.deltaTime;
             float camY = cam.transform.position.y;
             float camX = cam.transform.position.x;
+            if (float.IsNaN(camY) || float.IsInfinity(camY)) return;
+            if (wrapLength < 1f) wrapLength = Mathf.Max(1f, halfHeight * 2f);
 
             for (int i = 0; i < rocks.Count; i++)
             {
@@ -116,9 +118,14 @@ namespace StarbeakGalacticRebellion
                 r.y -= (8f + 30f * r.parallax) * dt;   // slow drift down
                 r.spin += r.spinSpeed * dt;
 
-                // Wrap relative to the camera viewport for endless scrolling.
-                while (r.y < camY - halfHeight) r.y += wrapLength;
-                while (r.y > camY + halfHeight) r.y -= wrapLength;
+                // Wrap relative to the camera viewport. Bounded arithmetic instead of a
+                // while-loop: a zero-length wrap would hang the main thread and Android
+                // would kill the app as an ANR.
+                if (r.y < camY - halfHeight || r.y > camY + halfHeight)
+                {
+                    float offset = Mathf.Repeat(r.y - (camY - halfHeight), wrapLength);
+                    r.y = camY - halfHeight + offset;
+                }
 
                 r.renderer.transform.SetPositionAndRotation(
                     new Vector3(r.x + camX * (1f - r.parallax), r.y, 420f - r.parallax * 180f),

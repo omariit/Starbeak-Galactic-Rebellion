@@ -64,7 +64,11 @@ namespace StarbeakGalacticRebellion
 
         private static void DestroyMaterial(Material m)
         {
-            if (m != null) DestroyImmediate(m);
+            if (m == null) return;
+            // DestroyImmediate during scene teardown is a known hard-crash pattern on
+            // Android; runtime-safe Destroy is the correct call from OnDisable/OnDestroy.
+            if (Application.isPlaying) Destroy(m);
+            else DestroyImmediate(m);
         }
 
         private void OnRenderImage(RenderTexture source, RenderTexture destination)
@@ -84,9 +88,18 @@ namespace StarbeakGalacticRebellion
             int hw = Mathf.Max(8, source.height >> dw);
             int ww = Mathf.Max(8, source.width >> dw);
 
-            RenderTexture bright = RenderTexture.GetTemporary(ww, hw, 0, source.graphicsFormat);
-            RenderTexture blurA = RenderTexture.GetTemporary(bwW, bwH, 0, source.graphicsFormat);
-            RenderTexture blurB = RenderTexture.GetTemporary(bwW, bwH, 0, source.graphicsFormat);
+            // NOTE: never reuse source.graphicsFormat here. On several Android GPUs the
+            // back-buffer format cannot back a temporary RenderTexture and GetTemporary
+            // hands back null, which then takes the whole render loop down.
+            RenderTexture bright = RenderTexture.GetTemporary(ww, hw, 0, RenderTextureFormat.Default);
+            RenderTexture blurA = RenderTexture.GetTemporary(bwW, bwH, 0, RenderTextureFormat.Default);
+            RenderTexture blurB = RenderTexture.GetTemporary(bwW, bwH, 0, RenderTextureFormat.Default);
+            if (bright == null || blurA == null || blurB == null)
+            {
+                Release(bright, blurA, blurB);
+                Graphics.Blit(source, destination);
+                return;
+            }
 
             brightMat.SetFloat(Threshold, threshold);
             brightMat.SetFloat(Knee, knee);
@@ -112,9 +125,16 @@ namespace StarbeakGalacticRebellion
             compositeMat.SetTexture(BloomTex, blurB);
             Graphics.Blit(source, destination, compositeMat);
 
-            RenderTexture.ReleaseTemporary(bright);
-            RenderTexture.ReleaseTemporary(blurA);
-            RenderTexture.ReleaseTemporary(blurB);
+            Release(bright, blurA, blurB);
+        }
+
+        private static void Release(params RenderTexture[] textures)
+        {
+            if (textures == null) return;
+            for (int i = 0; i < textures.Length; i++)
+            {
+                if (textures[i] != null) RenderTexture.ReleaseTemporary(textures[i]);
+            }
         }
     }
 }
