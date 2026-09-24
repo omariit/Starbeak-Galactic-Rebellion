@@ -1,11 +1,11 @@
 # STARBEAK: GALACTIC REBELLION — WORK PROGRESS / RESTORE FILE
 > Restore: open a new chat and say "read PROGRESS.md in C:\Users\DELL\Downloads\Starbeak Galactic Rebellion and continue".
-> Last update: 2026-09-24 17:45 (v1.0.3 APK built, signed, icon+launcher fixed, crash guards in)
+> Last update: 2026-09-24 18:40 (v1.0.4 APK built: orientation fixed, boot camera bloom removed)
 
 ## CURRENT STATE (2026-09-24)
-APK v1.0.3 (versionCode 3) BUILT, RELEASE-SIGNED (CN=Starbeak), v2 signature,
-launcher entry + icon present, 25.2 MB at `Builds\Starbeak-Galactic-Rebellion.apk`.
--> USER MUST TEST ON PHONE. Last known symptom: app closed ~1s after splash (device-only crash).
+APK v1.0.4 (versionCode 4) BUILT, RELEASE-SIGNED (CN=Starbeak), v2 signature,
+launcher entry + icon present, 25.25 MB at `Builds\Starbeak-Galactic-Rebellion.apk`.
+-> USER MUST TEST ON PHONE. Symptom reported on v1.0.1: screen upside-down + app closed ~1s after splash.
    Fixes shipped in v1.0.3: managed-only save cipher (removed System.Security.Cryptography
    static-init crash risk), guarded RunStateInit, safe bloom RenderTextures
    (RenderTextureFormat.Default + null guards), no DestroyImmediate at teardown,
