@@ -65,13 +65,31 @@ public static class StarbeakBatchmodeBuild
             // Colon is invalid in Windows folder names and breaks the Burst AOT output folder;
             // the on-device app name still comes from AndroidManifest.xml (with the colon).
             PlayerSettings.productName = "Starbeak Galactic Rebellion";
-            PlayerSettings.bundleVersion = "1.0.4";
-            PlayerSettings.Android.bundleVersionCode = 4;
+            PlayerSettings.bundleVersion = "1.0.5";
+            PlayerSettings.Android.bundleVersionCode = 5;
             PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, BundleId);
             PlayerSettings.applicationIdentifier = BundleId;
 
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel29;
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevel32;
+
+            // Force GLES3. With the default API list Unity also offers Vulkan, and a broken
+            // or old Vulkan driver shows up exactly as "the app shows one frame, plays a
+            // sound, then the process dies". GLES3 is universally supported and costs us
+            // nothing on this title (2D + additive sprites).
+            try
+            {
+                PlayerSettings.SetGraphicsAPIs(
+                    BuildTarget.Android,
+                    new[] { UnityEngine.Rendering.GraphicsDeviceType.OpenGLES3 });
+                Log("Graphics APIs for Android: " +
+                    string.Join(",", Array.ConvertAll(PlayerSettings.GetGraphicsAPIs(BuildTarget.Android),
+                        a => a.ToString())));
+            }
+            catch (System.Exception e)
+            {
+                Log("WARN: could not pin graphics APIs: " + e.Message);
+            }
 
             // Release signing. Keystore was created with Unity's bundled OpenJDK keytool.
             // Without useCustomKeystore=1 Unity silently ships the DEBUG key even when the

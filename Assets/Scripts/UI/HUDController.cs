@@ -72,7 +72,7 @@ namespace StarbeakGalacticRebellion
             go.layer = gameObject.layer;
 
             Text text = go.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.font = UiFont.Get();
             text.fontSize = fontSize;
             text.fontStyle = FontStyle.Bold;
             text.alignment = TextAnchor.MiddleCenter;

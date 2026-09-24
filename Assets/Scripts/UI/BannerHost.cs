@@ -19,17 +19,37 @@ namespace StarbeakGalacticRebellion
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
-            if (Instance != null) return;
-            GameObject go = new GameObject("BannerHost");
-            DontDestroyOnLoad(go);
-            go.AddComponent<BannerHost>();
+            // Runs from a NATIVE callback on every scene load. An exception here is
+            // fatal on IL2CPP releases (no dialog, no logcat) - so the whole body is
+            // guarded and the banner is a nicety, never a boot requirement.
+            try
+            {
+                if (Instance != null) return;
+                GameObject go = new GameObject("BannerHost");
+                DontDestroyOnLoad(go);
+                go.AddComponent<BannerHost>();
+            }
+            catch (System.Exception e)
+            {
+                CrashLog.Error("BannerHost.Bootstrap", e);
+            }
         }
 
         private void Awake()
         {
-            if (Instance != null && Instance != this) { Destroy(gameObject); return; }
-            Instance = this;
-            BuildCanvas();
+            try
+            {
+                if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+                Instance = this;
+                BuildCanvas();
+            }
+            catch (System.Exception e)
+            {
+                // A missing banner must never cost us the run.
+                CrashLog.Error("BannerHost.Awake", e);
+                if (Instance == this) Instance = null;
+                enabled = false;
+            }
         }
 
         private void OnEnable() { GameManager.NodeResolved += HandleResolved; }
@@ -48,7 +68,7 @@ namespace StarbeakGalacticRebellion
             GameObject go = new GameObject("BannerText");
             go.transform.SetParent(transform, false);
             banner = go.AddComponent<Text>();
-            banner.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            banner.font = UiFont.Get();
             banner.fontSize = 120;
             banner.fontStyle = FontStyle.Bold;
             banner.alignment = TextAnchor.MiddleCenter;

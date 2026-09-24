@@ -79,6 +79,7 @@
     <Compile Include="Assets\Scripts\Core\AudioManager.cs" />
     <Compile Include="Assets\Scripts\Persistence\SaveSystem.cs" />
     <Compile Include="Assets\Scripts\Player\InputController.cs" />
+    <Compile Include="Assets\Scripts\Core\CrashLog.cs" />
     <Compile Include="Assets\Scripts\AI\HazardArea.cs" />
     <Compile Include="Assets\Scripts\Weapons\WeaponInstance.cs" />
     <Compile Include="Assets\Scripts\Weapons\WeaponMods.cs" />
