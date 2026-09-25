@@ -35,6 +35,7 @@ namespace StarbeakGalacticRebellion
 
         private void Awake()
         {
+            CrashLog.Info("AudioManager.Awake:enter");
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
@@ -42,10 +43,19 @@ namespace StarbeakGalacticRebellion
             }
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            CrashLog.Info("AudioManager.Awake:singleton");
+            if (CrashLog.HasArgument("-starbeakNoAudio"))
+            {
+                CrashLog.Info("AudioManager.Awake:probe-disabled");
+                return;
+            }
 
             BuildSources();
+            CrashLog.Info("AudioManager.Awake:sources");
             LoadAllClips();
+            CrashLog.Info("AudioManager.Awake:clips");
             ApplySettings(SaveSystem.Instance?.Profile?.settings);
+            CrashLog.Info("AudioManager.Awake:leave");
         }
 
         private void BuildSources()
@@ -112,6 +122,7 @@ namespace StarbeakGalacticRebellion
 
         private void Update()
         {
+            if (musicSource == null) return;
             // Smooth music fades between themes / mute toggles.
             if (!Mathf.Approximately(musicSource.volume, musicTargetVolume))
             {
@@ -133,6 +144,7 @@ namespace StarbeakGalacticRebellion
         /// </summary>
         public void PlaySfx(string clipName, float volumeScale = 1f, float pitch = 1f)
         {
+            if (sfxSources.Count == 0) return;
             if (muted || string.IsNullOrEmpty(clipName)) return;
             if (!clips.TryGetValue(clipName, out AudioClip clip) || clip == null)
             {
@@ -158,6 +170,8 @@ namespace StarbeakGalacticRebellion
         /// <summary>Crossfades to a looping music clip by name.</summary>
         public void PlayMusic(string clipName)
         {
+            if (musicSource == null) return;
+            CrashLog.Info($"AudioManager.PlayMusic:{clipName}:enter");
             if (string.IsNullOrEmpty(clipName)) return;
             if (!clips.TryGetValue(clipName, out AudioClip clip) || clip == null)
             {
@@ -171,6 +185,7 @@ namespace StarbeakGalacticRebellion
             musicSource.volume = 0f;
             musicTargetVolume = muted ? 0f : musicVolume * masterVolume;
             musicSource.Play();
+            CrashLog.Info($"AudioManager.PlayMusic:{clipName}:leave");
         }
 
         public void StopMusic()

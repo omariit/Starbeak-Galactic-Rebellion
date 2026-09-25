@@ -24,10 +24,13 @@ namespace StarbeakGalacticRebellion
             // guarded and the banner is a nicety, never a boot requirement.
             try
             {
+                CrashLog.Info("BannerHost.Bootstrap:enter");
+                if (CrashLog.HasArgument("-starbeakNoBanner")) return;
                 if (Instance != null) return;
                 GameObject go = new GameObject("BannerHost");
                 DontDestroyOnLoad(go);
                 go.AddComponent<BannerHost>();
+                CrashLog.Info("BannerHost.Bootstrap:leave");
             }
             catch (System.Exception e)
             {
@@ -39,9 +42,11 @@ namespace StarbeakGalacticRebellion
         {
             try
             {
+                CrashLog.Info("BannerHost.Awake:enter");
                 if (Instance != null && Instance != this) { Destroy(gameObject); return; }
                 Instance = this;
                 BuildCanvas();
+                CrashLog.Info("BannerHost.Awake:leave");
             }
             catch (System.Exception e)
             {

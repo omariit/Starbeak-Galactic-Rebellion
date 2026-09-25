@@ -34,6 +34,7 @@ namespace StarbeakGalacticRebellion
 
         private void Awake()
         {
+            CrashLog.Info("ObjectPooler.Awake:enter");
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
@@ -41,6 +42,7 @@ namespace StarbeakGalacticRebellion
             }
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            CrashLog.Info("ObjectPooler.Awake:leave");
         }
 
         private void Initialize()

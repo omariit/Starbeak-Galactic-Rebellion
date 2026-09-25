@@ -36,6 +36,7 @@ namespace StarbeakGalacticRebellion
 
         private void Awake()
         {
+            CrashLog.Info("VFXManager.Awake:enter");
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
@@ -43,8 +44,15 @@ namespace StarbeakGalacticRebellion
             }
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            CrashLog.Info("VFXManager.Awake:singleton");
+            if (CrashLog.HasArgument("-starbeakNoVfx"))
+            {
+                CrashLog.Info("VFXManager.Awake:probe-disabled");
+                return;
+            }
 
             BuildPools();
+            CrashLog.Info("VFXManager.Awake:leave");
         }
 
         private void Start()
@@ -54,7 +62,9 @@ namespace StarbeakGalacticRebellion
 
         private void BuildPools()
         {
+            CrashLog.Info("VFXManager.BuildPools:enter");
             Material additive = NewAdditiveSpriteMaterial();
+            CrashLog.Info("VFXManager.BuildPools:material");
 
             for (int i = 0; i < particlePoolSize; i++)
             {
@@ -67,6 +77,7 @@ namespace StarbeakGalacticRebellion
                 ConfigureExplosionRenderer(renderer, additive);
                 particlePool.Add(ps);
             }
+            CrashLog.Info($"VFXManager.BuildPools:particles:{particlePool.Count}");
 
             for (int i = 0; i < ringPoolSize; i++)
             {
@@ -80,6 +91,7 @@ namespace StarbeakGalacticRebellion
                 renderer.sharedMaterial = additive;
                 ringPool.Add(renderer);
             }
+            CrashLog.Info($"VFXManager.BuildPools:rings:{ringPool.Count}");
         }
 
         private Material NewAdditiveSpriteMaterial()
@@ -374,6 +386,7 @@ namespace StarbeakGalacticRebellion
         /// <summary>Quick directional flash at the muzzle when the player fires.</summary>
         public void SpawnMuzzleFlash(Vector3 position, Vector2 direction)
         {
+            if (particlePool.Count == 0) return;
             ParticleSystem ps = particlePool[particleCursor];
             particleCursor = (particleCursor + 1) % particlePool.Count;
 

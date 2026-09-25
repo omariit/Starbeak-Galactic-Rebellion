@@ -21,6 +21,7 @@ namespace StarbeakGalacticRebellion
 
         private void Awake()
         {
+            CrashLog.Info("WeaponCraftingEngine.Awake:enter");
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
@@ -31,6 +32,7 @@ namespace StarbeakGalacticRebellion
 
             RegisterDefaultMods();
             RegisterDefaultBlueprints();
+            CrashLog.Info("WeaponCraftingEngine.Awake:leave");
         }
 
         private void RegisterDefaultMods()

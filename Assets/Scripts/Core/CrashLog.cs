@@ -35,6 +35,7 @@ namespace StarbeakGalacticRebellion
                 Application.logMessageReceivedThreaded += OnLog;
                 AppDomain.CurrentDomain.UnhandledException += OnUnhandled;
                 Info($"boot v{Application.version} unity={Application.unityVersion} device={SystemInfo.deviceModel} gfx={SystemInfo.graphicsDeviceName} api={SystemInfo.graphicsDeviceType}");
+                Info("CrashLog.Install:leave");
             }
             catch (Exception)
             {
@@ -70,6 +71,16 @@ namespace StarbeakGalacticRebellion
             Append($"[info] {message}");
         }
 
+        public static bool HasArgument(string name)
+        {
+            string[] args = Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
         // ---------------------------------------------------------------- on-screen mirror
         // A user with no cable and no logcat still has to be able to report WHY the app
         // died. Anything serious is printed over the game view so one screenshot is enough.
@@ -85,7 +96,7 @@ namespace StarbeakGalacticRebellion
                 overlayLines.Add(line);
                 while (overlayLines.Count > 10) overlayLines.RemoveAt(0);
                 overlay = string.Join("\n", overlayLines);
-                overlayAt = Time.realtimeSinceStartup;
+                overlayAt = (float)Environment.TickCount / 1000f;
             }
         }
 
@@ -94,10 +105,13 @@ namespace StarbeakGalacticRebellion
         {
             try
             {
+                Info("CrashLog.Overlay:enter");
+                if (HasArgument("-starbeakNoOverlay")) return;
                 if (overlayHost != null) return;
                 GameObject go = new GameObject("~CrashLogOverlay");
                 UnityEngine.Object.DontDestroyOnLoad(go);
                 overlayHost = go.AddComponent<CrashOverlay>();
+                Info("CrashLog.Overlay:leave");
             }
             catch (Exception)
             {
@@ -121,7 +135,7 @@ namespace StarbeakGalacticRebellion
 
         internal static float OverlayAge
         {
-            get { return Time.realtimeSinceStartup - overlayAt; }
+            get { return (float)Environment.TickCount / 1000f - overlayAt; }
         }
 
         public static void Error(string context, Exception e)

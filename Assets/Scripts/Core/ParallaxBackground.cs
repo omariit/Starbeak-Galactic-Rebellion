@@ -21,6 +21,14 @@ namespace StarbeakGalacticRebellion
 
         private void Awake()
         {
+            CrashLog.Info("ParallaxBackground.Awake:enter");
+            if (CrashLog.HasArgument("-starbeakNoParallax") || CrashLog.HasArgument("-starbeakNoBackground"))
+            {
+                SpriteRenderer ownRenderer = GetComponent<SpriteRenderer>();
+                if (ownRenderer != null) ownRenderer.enabled = false;
+                enabled = false;
+                return;
+            }
             cam = Camera.main;
             SpriteRenderer own = GetComponent<SpriteRenderer>();
 
@@ -45,6 +53,7 @@ namespace StarbeakGalacticRebellion
             }
 
             PositionTiles(Vector3.zero);
+            CrashLog.Info("ParallaxBackground.Awake:leave");
         }
 
         private void PositionTiles(Vector3 basePosition)

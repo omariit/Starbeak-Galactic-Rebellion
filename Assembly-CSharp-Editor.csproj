@@ -60,6 +60,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Editor\StarbeakProjectBuilder.cs" />
+    <Compile Include="Assets\Editor\StarbeakWindowsProbe.cs" />
     <Compile Include="Assets\Editor\StarbeakBatchmodeBuild.cs" />
   </ItemGroup>
   <ItemGroup>

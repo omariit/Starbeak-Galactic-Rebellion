@@ -25,6 +25,7 @@ namespace StarbeakGalacticRebellion
 
         private void Awake()
         {
+            CrashLog.Info("CombatDirector.Awake:enter");
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
@@ -32,6 +33,7 @@ namespace StarbeakGalacticRebellion
             }
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            CrashLog.Info("CombatDirector.Awake:leave");
         }
 
         private void OnEnable()

@@ -36,24 +36,30 @@ namespace StarbeakGalacticRebellion
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
+            CrashLog.Info("BeltField.Bootstrap:enter");
+            if (CrashLog.HasArgument("-starbeakNoBelt")) return;
             if (Instance != null) return;
             GameObject go = new GameObject("BeltField");
             DontDestroyOnLoad(go);
             go.AddComponent<BeltField>();
+            CrashLog.Info("BeltField.Bootstrap:leave");
         }
 
         private void Awake()
         {
+            CrashLog.Info("BeltField.Awake:enter");
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
                 return;
             }
             Instance = this;
+            CrashLog.Info("BeltField.Awake:leave");
         }
 
         private void Start()
         {
+            CrashLog.Info("BeltField.Start:enter");
             cam = Camera.main;
             if (cam != null)
             {
@@ -96,6 +102,7 @@ namespace StarbeakGalacticRebellion
                 rock.y = Random.Range(-halfHeight, halfHeight);
                 rocks.Add(rock);
             }
+            CrashLog.Info($"BeltField.Start:leave:{rocks.Count}");
         }
 
         private void LateUpdate()

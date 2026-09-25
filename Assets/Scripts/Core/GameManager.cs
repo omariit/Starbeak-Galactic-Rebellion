@@ -45,6 +45,7 @@ namespace StarbeakGalacticRebellion
 
         private void Awake()
         {
+            CrashLog.Info("GameManager.Awake:enter");
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
@@ -52,9 +53,11 @@ namespace StarbeakGalacticRebellion
             }
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            CrashLog.Info("GameManager.Awake:singleton");
 
             IsProductionBuild = Debug.isDebugBuild == false;
             ApplyProductionOptimizations();
+            CrashLog.Info("GameManager.Awake:optimizations");
             CurrentRunSeed = Environment.TickCount;
 
             // Portrait only, never upside down. Some OEM launchers rotate a
@@ -62,6 +65,7 @@ namespace StarbeakGalacticRebellion
             Screen.autorotateToPortrait = true;
             Screen.autorotateToPortraitUpsideDown = false;
             if (Screen.orientation != ScreenOrientation.Portrait) Screen.orientation = ScreenOrientation.Portrait;
+            CrashLog.Info("GameManager.Awake:orientation");
         }
 
         /// <summary>True when the most recent completed sector was the galaxy boss.</summary>
@@ -69,17 +73,35 @@ namespace StarbeakGalacticRebellion
 
         private void Start()
         {
+            CrashLog.Info("GameManager.Start:enter");
             SceneManager.sceneLoaded += HandleSceneLoaded;
 
             // Boot into the main menu on first launch.
-            ChangeState(GameState.MainMenu);
+            if (!CrashLog.HasArgument("-starbeakNoSceneLoad"))
+            {
+                ChangeState(GameState.MainMenu);
+                StartCoroutine(TraceFirstFrames());
+            }
+            CrashLog.Info("GameManager.Start:leave");
+        }
+
+        private System.Collections.IEnumerator TraceFirstFrames()
+        {
+            for (int frame = 0; frame < 3; frame++)
+            {
+                CrashLog.Info($"GameManager.Frame:{frame}:begin");
+                yield return new WaitForEndOfFrame();
+                CrashLog.Info($"GameManager.Frame:{frame}:end");
+            }
         }
 
         private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
         {
+            CrashLog.Info($"GameManager.SceneLoaded:{scene.name}:enter");
             // Per-scene UI canvases only exist after their scene activates; run the
             // state's init once more so this scene's controllers pick up the session.
             RunStateInit(CurrentState);
+            CrashLog.Info($"GameManager.SceneLoaded:{scene.name}:leave");
         }
 
         private void OnApplicationPause(bool paused)
@@ -101,26 +123,23 @@ namespace StarbeakGalacticRebellion
         /// </summary>
         private void ApplyProductionOptimizations()
         {
+            CrashLog.Info("GameManager.Optimizations:enter");
             Application.targetFrameRate = GameConstants.TargetFrameRate;
             QualitySettings.vSyncCount = 0;
             Time.fixedDeltaTime = GameConstants.FixedDeltaTime;
-
-            if (IsProductionBuild)
-            {
-                Debug.unityLogger.logEnabled = false;
-                Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
-                Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.None);
-            }
+            CrashLog.Info("GameManager.Optimizations:leave");
         }
 
         public void ChangeState(GameState newState)
         {
+            CrashLog.Info($"GameManager.ChangeState:{newState}:enter");
             bool stateSame = CurrentState == newState;
             bool sceneOk = SceneMatchesState(newState);
             if (stateSame && sceneOk) return;
 
             CurrentState = newState;
             StateChanged?.Invoke(newState);
+            CrashLog.Info($"GameManager.ChangeState:{newState}:event");
 
             // Theme music follows the state machine.
             AudioManager audio = AudioManager.Instance;
@@ -133,6 +152,7 @@ namespace StarbeakGalacticRebellion
                     default:                  audio.PlayMusic("music_menu");   break;
                 }
             }
+            CrashLog.Info($"GameManager.ChangeState:{newState}:music");
 
             // Fresh camera shake state on every transition.
             VFXManager.Instance?.ClearTrauma();
@@ -143,12 +163,15 @@ namespace StarbeakGalacticRebellion
             {
                 // Transition data lives in DontDestroyOnLoad singletons; the per-scene
                 // UI controllers wake up on the load and get initialized in HandleSceneLoaded.
+                CrashLog.Info($"GameManager.ChangeState:{newState}:load:{scene}");
                 SceneManager.LoadScene(scene, LoadSceneMode.Single);
+                CrashLog.Info($"GameManager.ChangeState:{newState}:loaded:{scene}");
             }
             else
             {
                 RunStateInit(newState);
             }
+            CrashLog.Info($"GameManager.ChangeState:{newState}:leave");
         }
 
         private static bool SceneMatchesState(GameState state)
@@ -160,6 +183,7 @@ namespace StarbeakGalacticRebellion
 
         private void RunStateInit(GameState state)
         {
+            CrashLog.Info($"GameManager.RunStateInit:{state}:enter");
             // Every transition is guarded: a failure in one subsystem must never abort
             // the boot sequence (an exception inside a native scene-load callback is
             // fatal on IL2CPP releases).
@@ -178,6 +202,7 @@ namespace StarbeakGalacticRebellion
                 CrashLog.Error($"RunStateInit({state})", e);
                 Debug.LogError($"[GameManager] state init failed for {state}: {e}");
             }
+            CrashLog.Info($"GameManager.RunStateInit:{state}:leave");
         }
 
         /// <summary>Rolls a fresh seed and begins a brand new run.</summary>

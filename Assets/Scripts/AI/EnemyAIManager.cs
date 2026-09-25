@@ -66,6 +66,7 @@ namespace StarbeakGalacticRebellion
 
         private void Awake()
         {
+            CrashLog.Info("EnemyAIManager.Awake:enter");
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
@@ -73,6 +74,7 @@ namespace StarbeakGalacticRebellion
             }
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            CrashLog.Info("EnemyAIManager.Awake:leave");
         }
 
         // ---------------------------------------------------------------- Lifecycle

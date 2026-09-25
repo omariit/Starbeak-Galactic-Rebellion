@@ -39,12 +39,20 @@ namespace StarbeakGalacticRebellion
 
         private void Awake()
         {
+            CrashLog.Info("MainMenuController.Awake:enter");
+            if (CrashLog.HasArgument("-starbeakNoMainMenuUi"))
+            {
+                gameObject.SetActive(false);
+                enabled = false;
+                return;
+            }
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
                 return;
             }
             Instance = this;
+            CrashLog.Info("MainMenuController.Awake:leave");
         }
 
         private void OnEnable()
@@ -61,6 +69,7 @@ namespace StarbeakGalacticRebellion
 
         private void Start()
         {
+            CrashLog.Info("MainMenuController.Start:enter");
             if (continueButton != null) continueButton.onClick.AddListener(OnContinue);
             if (newRunButton != null) newRunButton.onClick.AddListener(OnNewRun);
             if (settingsButton != null) settingsButton.onClick.AddListener(OnSettings);
@@ -70,6 +79,7 @@ namespace StarbeakGalacticRebellion
             wireSettingsControls();
             SyncSettingsWidgets();
             widgetsReady = true;
+            CrashLog.Info("MainMenuController.Start:leave");
         }
 
         private static GameSettings SettingsOrNull()

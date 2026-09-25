@@ -61,6 +61,7 @@
   <ItemGroup>
     <Compile Include="Assets\Scripts\Persistence\AesEncryptor.cs" />
     <Compile Include="Assets\Scripts\Weapons\WeaponCraftingEngine.cs" />
+    <Compile Include="Assets\Scripts\Core\UiFont.cs" />
     <Compile Include="Assets\Scripts\UI\HubBaseController.cs" />
     <Compile Include="Assets\Scripts\Visuals\BeltField.cs" />
     <Compile Include="Assets\Scripts\UI\MainMenuController.cs" />
@@ -79,6 +80,7 @@
     <Compile Include="Assets\Scripts\Core\AudioManager.cs" />
     <Compile Include="Assets\Scripts\Persistence\SaveSystem.cs" />
     <Compile Include="Assets\Scripts\Player\InputController.cs" />
+    <Compile Include="Assets\Scripts\Core\CrashOverlay.cs" />
     <Compile Include="Assets\Scripts\Core\CrashLog.cs" />
     <Compile Include="Assets\Scripts\AI\HazardArea.cs" />
     <Compile Include="Assets\Scripts\Weapons\WeaponInstance.cs" />

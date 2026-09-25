@@ -369,7 +369,7 @@ public static class StarbeakProjectBuilder
         renderer.sprite = bgSprite;
         renderer.sortingLayerName = "Background";
         renderer.sortingOrder = -1;
-        renderer.drawMode = SpriteDrawMode.Sliced;
+        renderer.drawMode = SpriteDrawMode.Simple;
 
         ParallaxBackground parallax = go.AddComponent<ParallaxBackground>();
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());

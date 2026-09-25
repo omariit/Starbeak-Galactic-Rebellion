@@ -50,6 +50,12 @@ namespace StarbeakGalacticRebellion
 
         private void Awake()
         {
+            CrashLog.Info("PlayerShip.Awake:enter");
+            if (CrashLog.HasArgument("-starbeakNoPlayer"))
+            {
+                gameObject.SetActive(false);
+                return;
+            }
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
@@ -64,6 +70,7 @@ namespace StarbeakGalacticRebellion
             body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             body.freezeRotation = true;
             instanceId = GetInstanceID();
+            CrashLog.Info("PlayerShip.Awake:leave");
         }
 
         private void Start()
@@ -130,6 +137,7 @@ namespace StarbeakGalacticRebellion
         private void Update()
         {
             if (!alive) return;
+            if (GameManager.Instance == null || GameManager.Instance.CurrentState != GameState.Gameplay) return;
 
             EquippedWeapon?.TickCooldown(Time.deltaTime);
             RegenerateShields(Time.deltaTime);
@@ -198,7 +206,9 @@ namespace StarbeakGalacticRebellion
         {
             GameSettings settings = SaveSystem.Instance?.Profile?.settings;
             if (settings == null || !settings.hapticsEnabled || !settings.damageHaptics) return;
+#if UNITY_ANDROID || UNITY_IOS
             Handheld.Vibrate();
+#endif
         }
 
         private void Die()
