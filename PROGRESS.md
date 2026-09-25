@@ -1,40 +1,56 @@
 # STARBEAK: GALACTIC REBELLION — WORK PROGRESS / RESTORE FILE
 > Restore: open a new chat and say "read PROGRESS.md in C:\Users\DELL\Downloads\Starbeak Galactic Rebellion and continue".
-> Last update: 2026-09-25 20:30 (v1.0.6 APK built: one-second crash root-caused and fixed)
+> Last update: 2026-09-25 23:25 (v1.0.7 APK built: font + map fixes, endless galaxies, roguelite weapon upgrades)
 
 ## CURRENT STATE (2026-09-25)
-APK v1.0.6 (versionCode 6) BUILT, RELEASE-SIGNED (CN=Starbeak), v2 signature,
-launcher entry + icon present, GLES3 pinned, 25.08 MB at
-`Builds\Starbeak-Galactic-Rebellion.apk`. Commit 3d3d428.
--> USER MUST TEST ON PHONE. This version fixes the "shows space+rocket+sound
-   for ~1s then closes" bug that persisted through v1.0.3-v1.0.5.
+APK v1.0.7 (versionCode 7) BUILT, RELEASE-SIGNED (CN=Starbeak), v2 signature,
+launcher entry + icon present, GLES3 pinned, 25.61 MB at
+`Builds\Starbeak Galactic Rebellion\Builds\Starbeak-Galactic-Rebellion.apk`. Commit fae2841.
+-> v1.0.6 fixed the one-second crash (PlayerShip fired pooled projectiles during
+   Boot/MainMenu). The app then ran but the SectorMap was broken: no text and the
+   entry node was off-screen/untappable. Both are fixed in v1.0.7.
 
-## ROOT CAUSE OF THE ONE-SECOND CRASH (found 2026-09-25)
-Reproduced locally by building a Windows standalone of the same project
-(`StarbeakWindowsProbe.cs`, Mono backend) and watching it die. Native crash in
-UnityPlayer.dll right after AudioManager.Awake started menu music. Binary-searched
-the boot path by disabling subsystems one at a time (command-line switches in
-CrashLog.HasArgument): the crash vanished only when the player object was
-disabled, and reappeared the moment PlayerShip.Update ran.
-ACTUAL BUG: `PlayerShip.Update` did NOT check the game state, so while the game
-sat in Boot/MainMenu it autofired pooled projectiles every frame before combat,
-pools and weapon were warm -> native death on the first menu frame.
-FIX (Assets/Scripts/Player/PlayerShip.cs:140):
-    if (GameManager.Instance == null || GameManager.Instance.CurrentState != GameState.Gameplay) return;
-Verified: with the guard, the Windows probe runs a full minute without crashing.
-The probe switches are command-line gated (`-starbeakNo*`) and INERT on Android,
-so every subsystem ships enabled.
+## v1.0.7 FIXES (diagnosed from the "rocket + circles, no text, no taps" report)
+1. INVISIBLE TEXT: `Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")` is
+   stripped from IL2CPP release builds, so every `Text` rendered blank on-device.
+   Fix: ship `Assets/Resources/StarbeakUI.ttf` (Segoe UI, 975 KB). Verified inside
+   the APK at `assets/bin/Data/198c8c57f3484570ad34fefa8248938e` (its GUID).
+   `StarbeakProjectBuilder.GetUiFont()` and the runtime `UiFont.Get()` provider both
+   load it; the legacy font is now only an editor fallback.
+2. UNTAPPABLE MAP: `GetNodeWorldPosition` used tier y = 0..1360, but the graph
+   container is 1600 tall centered on 0 (half-height 800) -> the tier-0 ENTRY node
+   sat 560px above the top edge, off-screen. Since the entry node is the only
+   tappable node at run start, the map looked dead. Fix: center the whole graph
+   (y = (tierCount-1-tier - (tierCount-1)*0.5) * spacing -> +/-680).
 
-## IF IT STILL CRASHES ON DEVICE
-1. The in-game diagnostic overlay prints any managed exception in red over the
-   screen for 60s (CrashOverlay) - one screenshot is enough to diagnose.
+## v1.0.7 FEATURES (user request: endless stages + changing rockets/types)
+- ENDLESS GALAXIES: `GameManager.GalaxyIndex` (from `ProfileData.galaxiesCleared`).
+  Boss kill -> reward (3 feathers + 120+40*g scrap) -> `DiscardMap()` -> Hub ->
+  DEPLOY -> `DeployToNextGalaxy()` (keeps run upgrades) -> fresh, deeper galaxy.
+  Deeper galaxies grow tierCount 5..9 (spacing shrinks to fit the container),
+  enemies get `activeTier = tier + galaxy` (tankier, more elites), flock descent
+  speeds up (16..44), fleets grow +3/galaxy, bosses hit harder.
+- ROGUELITE WEAPON UPGRADES (`Assets/Scripts/Weapons/WeaponUpgrades.cs`): clearing a
+  non-boss combat node sets `pendingUpgradeOffer`; when the SectorMap opens,
+  `WeaponUpgradeUI` shows 3 random upgrades (Twin Barrel +1 projectile, Overcharge
+  +30% dmg, Rapid Fire -20% cd, Scatter +18 deg, Piercing Rounds, Mag-Accelerator
+  +25% speed). Applied to the live weapon; `WeaponUpgrades.Reapply` puts them back
+  after the per-sector weapon rebuild in `PlayerShip.Respawn`; reset only on
+  `StartNewRun` (menu). Hub DEPLOY uses `DeployToNextGalaxy` (keeps upgrades).
+- Map header now reads "GALAXY n - N SECTORS".
+
+## KEY ARCHITECTURE (do not regress)
+- Probe switches in CrashLog.HasArgument ("-starbeakNo*") are INERT on Android.
+- Combat flow: HUDController.OnSectorCleared -> GameManager.CompleteNode(nodeId,true)
+  -> boss? Hub : SectorMap(+upgrade offer). Death -> RegisterDefeat -> SectorMap.
+- PlayerShip.Update returns early unless CurrentState == Gameplay (the v1.0.6 crash fix).
+
+## IF IT STILL FAILS ON DEVICE
+1. The in-game diagnostic overlay prints any managed exception in red over the screen
+   for 60s (CrashOverlay) - one screenshot is enough to diagnose.
 2. Read the crash log on the phone (file manager ->
-   Android/data/com.starbeak.galacticrebellion/files/starbeak_log.txt) OR connect
-   USB and run:
+   Android/data/com.starbeak.galacticrebellion/files/starbeak_log.txt) OR connect USB and run:
    `& "C:\Program Files\Unity 2022.3.30f1\Editor\Data\PlaybackEngines\AndroidPlayer\SDK\platform-tools\adb.exe" logcat -d | Select-String "Unity|AndroidRuntime|FATAL|DEBUG"`
-3. Suspects remaining, in order: (a) BloomStack OnRenderImage on that GPU (removed
-   from the Boot camera in v1.0.4; gameplay still has NO bloom - add only after
-   stability); (b) Particles/Rendering path on low-end GPU.
 
 ## WHAT WAS ALREADY FIXED (do not regress)
 - Scene flow: GameManager.ChangeState now loads scenes (MainMenu/SectorMap/Gameplay/Hub) and
