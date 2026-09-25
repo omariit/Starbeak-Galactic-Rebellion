@@ -94,6 +94,10 @@ namespace StarbeakGalacticRebellion
                 ? WeaponCraftingEngine.Instance.BuildFromLoadout(SaveSystem.Instance?.Profile?.loadout)
                 : new WeaponInstance();
 
+            // The weapon is rebuilt from the persisted loadout on every sector; put this
+            // run's accumulated upgrades back on top so multishot/damage/etc. are not lost.
+            WeaponUpgrades.Reapply(EquippedWeapon);
+
             gameObject.SetActive(true);
             Invoke(nameof(EndSpawnProtection), invulnerabilityTime);
         }

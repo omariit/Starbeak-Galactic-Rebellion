@@ -88,6 +88,10 @@ namespace StarbeakGalacticRebellion
             SideStepActive = false;
             killCount = 0;
             bossChicken = null;
+
+            // The flock presses downward faster in deeper galaxies.
+            int galaxy = GameManager.Instance != null ? GameManager.Instance.GalaxyIndex : 0;
+            formationDescentSpeed = Mathf.Min(44f, 16f + galaxy * 3f);
         }
 
         public void Deactivate()
@@ -106,8 +110,10 @@ namespace StarbeakGalacticRebellion
         public void ConfigureForNode(int nodeId, int tier, bool isBossNode)
         {
             NodeId = nodeId;
-            activeTier = Mathf.Max(1, tier);
-            eliteChance = Mathf.Min(0.5f, 0.15f + activeTier * 0.06f);
+            // Deeper galaxies raise the effective tier: tankier chickens, harder bosses.
+            int galaxy = GameManager.Instance != null ? GameManager.Instance.GalaxyIndex : 0;
+            activeTier = Mathf.Max(1, tier + galaxy);
+            eliteChance = Mathf.Min(0.55f, 0.15f + activeTier * 0.06f);
             bossNodePending = isBossNode;
         }
 

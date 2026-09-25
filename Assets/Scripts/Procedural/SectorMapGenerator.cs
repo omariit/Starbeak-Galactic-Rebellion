@@ -68,6 +68,12 @@ namespace StarbeakGalacticRebellion
             nextId = 0;
             IsBossDefeated = false;
 
+            // Endless mode: every two galaxies the map grows a tier (capped so the graph
+            // still fits the fixed container); vertical spacing shrinks to compensate.
+            int galaxy = GameManager.Instance != null ? GameManager.Instance.GalaxyIndex : 0;
+            tierCount = Mathf.Clamp(GameConstants.TierCount + galaxy / 2, GameConstants.TierCount, 9);
+            tierVerticalSpacing = 340f * (4f / (tierCount - 1));
+
             GenerateEntryNode();
             GenerateBranchingTiers();
             GenerateBossNode();
@@ -354,7 +360,10 @@ namespace StarbeakGalacticRebellion
 
             // Center nodes horizontally across the tier's spread.
             float x = ((index + 0.5f) / count - 0.5f) * nodeHorizontalSpread;
-            float y = (tierCount - 1 - node.tier) * tierVerticalSpacing;
+            // Center the whole galaxy vertically: raw tier spacing spans 0..(tierCount-1)*spacing,
+            // which pushed the entry node ~560px above the 1600px-tall graph container so it was
+            // off-screen and untappable. Subtract half the total height to land in +/-half.
+            float y = ((tierCount - 1 - node.tier) - (tierCount - 1) * 0.5f) * tierVerticalSpacing;
             return new Vector3(x, y, 0f);
         }
 

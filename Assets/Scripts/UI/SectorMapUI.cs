@@ -79,7 +79,8 @@ namespace StarbeakGalacticRebellion
 
             if (headerText != null)
             {
-                headerText.text = $"Galaxy Seed {generator.ActiveSeed}  -  {nodes.Count} Sectors";
+                int galaxy = GameManager.Instance != null ? GameManager.Instance.GalaxyIndex : 0;
+                headerText.text = $"GALAXY {galaxy + 1}  -  {nodes.Count} SECTORS";
             }
         }
 

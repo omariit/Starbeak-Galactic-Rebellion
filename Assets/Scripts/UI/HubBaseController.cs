@@ -139,7 +139,8 @@ namespace StarbeakGalacticRebellion
                 GameManager.Instance.ChangeState(GameState.SectorMap);
                 return;
             }
-            GameManager.Instance.StartNewRun();
+            // Post-boss: keep the run's weapon upgrades and push into the next (harder) galaxy.
+            GameManager.Instance.DeployToNextGalaxy();
         }
 
         private void TogglePanel(GameObject panel)

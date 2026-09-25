@@ -99,7 +99,8 @@ namespace StarbeakGalacticRebellion
             SectorNode node = map.GetNode(ai.NodeId);
             if (node.IsBoss) return bossFleetSize;
 
-            return Mathf.Clamp(baseFleetSize + node.tier * fleetSizePerTier, 1, GameConstants.EnemyBudget);
+            int galaxy = GameManager.Instance != null ? GameManager.Instance.GalaxyIndex : 0;
+            return Mathf.Clamp(baseFleetSize + node.tier * fleetSizePerTier + galaxy * 3, 1, GameConstants.EnemyBudget);
         }
 
         /// <summary>Abandons the current sector (used by the pause menu's retreat option).</summary>

@@ -20,6 +20,19 @@ namespace StarbeakGalacticRebellion
         /// <summary>Run-local seed, regenerated for each new galaxy.</summary>
         public int CurrentRunSeed { get; private set; }
 
+        /// <summary>Zero-based depth counter; every boss kill pushes the next galaxy harder (endless mode).</summary>
+        public int GalaxyIndex
+        {
+            get
+            {
+                SaveSystem save = SaveSystem.Instance;
+                return save != null && save.Profile != null ? Mathf.Max(0, save.Profile.galaxiesCleared) : 0;
+            }
+        }
+
+        /// <summary>True when a sector-clear upgrade still needs to be offered to the player.</summary>
+        private bool pendingUpgradeOffer;
+
         public GameState CurrentState { get; private set; }
         public bool IsProductionBuild { get; private set; }
 
@@ -205,8 +218,20 @@ namespace StarbeakGalacticRebellion
             CrashLog.Info($"GameManager.RunStateInit:{state}:leave");
         }
 
-        /// <summary>Rolls a fresh seed and begins a brand new run.</summary>
+        /// <summary>Rolls a fresh seed and begins a brand new run (fresh weapon, fresh galaxy).</summary>
         public void StartNewRun()
+        {
+            CurrentRunSeed = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
+            WeaponUpgrades.ResetForNewRun();
+            SectorMapGenerator.Instance?.DiscardMap();
+            ChangeState(GameState.SectorMap);
+        }
+
+        /// <summary>
+        /// Post-boss deployment: rolls a fresh seed for the NEXT galaxy and keeps the run's
+        /// accumulated weapon upgrades so the player can keep pace with rising difficulty.
+        /// </summary>
+        public void DeployToNextGalaxy()
         {
             CurrentRunSeed = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
             SectorMapGenerator.Instance?.DiscardMap();
@@ -277,6 +302,13 @@ namespace StarbeakGalacticRebellion
             SaveSystem.Instance?.Load();
             SectorMapGenerator.Instance?.GenerateOrLoad(CurrentRunSeed);
             SectorMapUI.Instance?.Render();
+
+            // A combat node was just cleared: present the roguelite upgrade pick on top of the map.
+            if (pendingUpgradeOffer)
+            {
+                pendingUpgradeOffer = false;
+                WeaponUpgradeUI.Instance?.Offer(WeaponUpgrades.RollChoices(3));
+            }
         }
 
         private void StartCombatLoop()
@@ -306,11 +338,23 @@ namespace StarbeakGalacticRebellion
             if (SectorMapGenerator.Instance != null &&
                 SectorMapGenerator.Instance.IsBossDefeated)
             {
+                // Endless loop: reward, record the clear, then discard this galaxy so the
+                // next SectorMap visit procedurally generates a deeper, harder one.
+                int galaxy = GalaxyIndex;
                 AddResource(ResourceType.GoldenFeathers, 3);
+                AddResource(ResourceType.ScrapIron, 120 + galaxy * 40);
+                if (SaveSystem.Instance != null && SaveSystem.Instance.Profile != null)
+                {
+                    SaveSystem.Instance.Profile.galaxiesCleared++;
+                    SaveSystem.Instance.MarkDirty();
+                }
+                SectorMapGenerator.Instance?.DiscardMap();
                 ChangeState(GameState.HubBase);
             }
             else
             {
+                // Survived a normal sector: offer a weapon upgrade when the map opens.
+                pendingUpgradeOffer = true;
                 ChangeState(GameState.SectorMap);
             }
         }

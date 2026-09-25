@@ -65,8 +65,8 @@ public static class StarbeakBatchmodeBuild
             // Colon is invalid in Windows folder names and breaks the Burst AOT output folder;
             // the on-device app name still comes from AndroidManifest.xml (with the colon).
             PlayerSettings.productName = "Starbeak Galactic Rebellion";
-            PlayerSettings.bundleVersion = "1.0.6";
-            PlayerSettings.Android.bundleVersionCode = 6;
+            PlayerSettings.bundleVersion = "1.0.7";
+            PlayerSettings.Android.bundleVersionCode = 7;
             PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, BundleId);
             PlayerSettings.applicationIdentifier = BundleId;
 

@@ -92,6 +92,8 @@
     <Compile Include="Assets\Scripts\Procedural\SectorMapGenerator.cs" />
     <Compile Include="Assets\Scripts\Weapons\StatusEffect.cs" />
     <Compile Include="Assets\Scripts\UI\HUDController.cs" />
+    <Compile Include="Assets\Scripts\UI\WeaponUpgradeUI.cs" />
+    <Compile Include="Assets\Scripts\Weapons\WeaponUpgrades.cs" />
     <Compile Include="Assets\Scripts\AI\Chicken.cs" />
   </ItemGroup>
   <ItemGroup>

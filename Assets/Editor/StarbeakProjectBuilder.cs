@@ -128,12 +128,16 @@ public static class StarbeakProjectBuilder
         return sprite;
     }
 
-    private static Font GetUiFont()
-    {
-        if (UiFont != null) return UiFont;
-        UiFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        return UiFont;
-    }
+        private static Font GetUiFont()
+        {
+            if (UiFont != null) return UiFont;
+            // A real font asset shipped under Resources/ always wins: the built-in legacy
+            // font is stripped from IL2CPP release builds, which makes every Text render
+            // blank on-device even though it looked fine in the editor.
+            UiFont = AssetDatabase.LoadAssetAtPath<Font>("Assets/Resources/StarbeakUI.ttf");
+            if (UiFont == null) UiFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            return UiFont;
+        }
 
     private static T LoadComponent<T>(string prefabName) where T : Component
     {
@@ -479,6 +483,37 @@ public static class StarbeakProjectBuilder
         mapUI.marketIcon = LoadSprite("node_market");
         mapUI.bossIcon = LoadSprite("node_boss");
         mapUI.headerText = FindComponent<Text>(canvas, "HeaderText");
+
+        // Roguelite upgrade panel: offered on top of the map after each combat-node clear.
+        // Hidden by default; WeaponUpgradeUI.Offer() flips it on.
+        RectTransform upgradePanel = AddPanel("UpgradePanel", canvas.transform, true);
+        upgradePanel.anchorMin = Vector2.zero;
+        upgradePanel.anchorMax = Vector2.one;
+        upgradePanel.offsetMin = Vector2.zero;
+        upgradePanel.offsetMax = Vector2.zero;
+        Image upgradeDim = upgradePanel.gameObject.GetComponent<Image>();
+        upgradeDim.color = new Color(0.02f, 0.03f, 0.08f, 0.85f);
+        AddText("UpgradeTitle", upgradePanel, 0f, 540f, 940f, 100f,
+            "SECTOR CLEARED  //  CHOOSE AN UPGRADE", 40, TextAnchor.MiddleCenter)
+            .color = new Color(0.7f, 0.95f, 1f);
+
+        WeaponUpgradeUI upgradeUI = canvas.gameObject.AddComponent<WeaponUpgradeUI>();
+        upgradeUI.rootPanel = upgradePanel.gameObject;
+        upgradeUI.titleText = FindComponent<Text>(canvas, "UpgradePanel/UpgradeTitle");
+
+        RectTransform[] choices = new RectTransform[3];
+        choices[0] = AddButton("Choice0", upgradePanel, 0f, 250f, 800f, 160f, "");
+        choices[1] = AddButton("Choice1", upgradePanel, 0f, 60f, 800f, 160f, "");
+        choices[2] = AddButton("Choice2", upgradePanel, 0f, -130f, 800f, 160f, "");
+        upgradeUI.choiceButtons = new Button[3];
+        for (int i = 0; i < 3; i++)
+        {
+            upgradeUI.choiceButtons[i] = choices[i].GetComponent<Button>();
+            Text choiceLabel = choices[i].GetComponentInChildren<Text>();
+            choiceLabel.fontSize = 36;
+            choiceLabel.alignment = TextAnchor.MiddleCenter;
+        }
+        upgradePanel.gameObject.SetActive(false);
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, $"{SceneRoot}/SectorMap.unity");
